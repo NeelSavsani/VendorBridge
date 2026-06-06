@@ -75,6 +75,12 @@ $routes = [
     'PUT /api/vendors/{id}' => 'vendor/update',
     'DELETE /api/vendors/{id}' => 'vendor/delete',
 
+
+    // DASHBOARD
+
+    'GET /api/dashboard'
+    => 'dashboard/index',
+
     // RFQ
 
     'GET /api/rfqs' => 'rfq/list',
@@ -83,101 +89,101 @@ $routes = [
     'PUT /api/rfqs/{id}' => 'rfq/update',
 
     'POST /api/rfqs/{id}/assign-vendor'
-        => 'rfq/assign_vendor',
+    => 'rfq/assign_vendor',
 
     'POST /api/rfqs/{id}/attachment'
-        => 'rfq/upload_attachment',
+    => 'rfq/upload_attachment',
 
     // QUOTATION
 
     'GET /api/quotations' => 'quotation/list',
     'POST /api/quotations' => 'quotation/create',
     'POST /api/quotations/submit'
-        => 'quotation/submit',
+    => 'quotation/submit',
 
     'GET /api/quotations/{id}'
-        => 'quotation/get',
+    => 'quotation/get',
 
     'GET /api/quotations/compare/{rfq_id}'
-        => 'quotation/compare',
+    => 'quotation/compare',
 
     // APPROVAL
 
     'POST /api/approvals'
-        => 'approval/create',
+    => 'approval/create',
 
     'GET /api/approvals'
-        => 'approval/list',
+    => 'approval/list',
 
     'PUT /api/approvals/{id}/approve'
-        => 'approval/approve',
+    => 'approval/approve',
 
     'PUT /api/approvals/{id}/reject'
-        => 'approval/reject',
+    => 'approval/reject',
 
     // PURCHASE ORDER
 
     'GET /api/purchase-orders'
-        => 'purchase_order/list',
+    => 'purchase_order/list',
 
     'POST /api/purchase-orders'
-        => 'purchase_order/create',
+    => 'purchase_order/create',
 
     'GET /api/purchase-orders/{id}'
-        => 'purchase_order/get',
+    => 'purchase_order/get',
 
     'GET /api/purchase-orders/{id}/generate'
-        => 'purchase_order/generate',
+    => 'purchase_order/generate',
 
     // INVOICE
 
     'GET /api/invoices'
-        => 'invoice/list',
+    => 'invoice/list',
 
     'POST /api/invoices'
-        => 'invoice/create',
+    => 'invoice/create',
 
     'GET /api/invoices/{id}'
-        => 'invoice/get',
+    => 'invoice/get',
 
     'GET /api/invoices/{id}/pdf'
-        => 'invoice/pdf',
+    => 'invoice/pdf',
 
     'POST /api/invoices/{id}/email'
-        => 'invoice/email',
+    => 'invoice/email',
 
     // NOTIFICATIONS
 
     'POST /api/notifications'
-        => 'notifications/create',
+    => 'notifications/create',
 
     'GET /api/notifications'
-        => 'notifications/list',
+    => 'notifications/list',
 
     'PUT /api/notifications/{id}/read'
-        => 'notifications/mark_read',
+    => 'notifications/mark_read',
 
     // LOGS
 
     'GET /api/logs'
-        => 'logs/list',
+    => 'logs/list',
 
     'GET /api/logs/stats'
-        => 'logs/stats',
+    => 'logs/stats',
 
     'GET /api/logs/analytics'
-        => 'logs/analytics',
+    => 'logs/analytics',
 
     // REPORTS
 
     'GET /api/reports/spending'
-        => 'reports/spending',
+    => 'reports/spending',
 
     'GET /api/reports/vendors'
-        => 'reports/vendors',
+    => 'reports/vendors',
 
     'GET /api/reports/procurement'
-        => 'reports/procurement',
+    => 'reports/procurement',
 ];
 
 // ========================================
@@ -249,7 +255,6 @@ foreach ($routes as $pattern => $handler) {
         try {
 
             require $file;
-
         } catch (Throwable $e) {
 
             json_response([

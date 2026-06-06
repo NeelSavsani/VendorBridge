@@ -54,42 +54,105 @@ const api = {
 
 // ---- AUTH ----
 const auth = {
-  user: null,
-  token: null,
+    user: null,
+    token: null,
 
-  init() {
-    this.token = localStorage.getItem('vb_token');
-    const userStr = localStorage.getItem('vb_user');
-    if (userStr) this.user = JSON.parse(userStr);
-  },
+    init() {
 
-  login(token, user) {
-    this.token = token;
-    this.user = user;
-    localStorage.setItem('vb_token', token);
-    localStorage.setItem('vb_user', JSON.stringify(user));
-  },
+        this.token =
+            localStorage.getItem('vb_token');
 
-  logout() {
-    this.token = null;
-    this.user = null;
-    localStorage.removeItem('vb_token');
-    localStorage.removeItem('vb_user');
-    window.location.href =
-    '/vendorbridge/frontend/auth/login.html';
-  },
+        const userStr =
+            localStorage.getItem('vb_user');
 
-  isLoggedIn() { return !!this.token && !!this.user; },
-  hasRole(...roles) { return this.user && roles.includes(this.user.role); },
-  
-  requireAuth() {
-    if (!this.isLoggedIn()) {
-      window.location.href =
-    '/vendorbridge/frontend/auth/login.html';
-      return false;
+        if (userStr) {
+
+            try {
+
+                this.user =
+                    JSON.parse(userStr);
+
+            }
+            catch (e) {
+
+                console.error(
+                    'Invalid vb_user in localStorage:',
+                    userStr
+                );
+
+                localStorage.removeItem(
+                    'vb_user'
+                );
+
+                localStorage.removeItem(
+                    'vb_token'
+                );
+
+                this.user = null;
+                this.token = null;
+            }
+        }
+    },
+
+    login(token, user) {
+
+        this.token = token;
+        this.user = user;
+
+        localStorage.setItem(
+            'vb_token',
+            token
+        );
+
+        localStorage.setItem(
+            'vb_user',
+            JSON.stringify(user)
+        );
+    },
+
+    logout() {
+
+        this.token = null;
+        this.user = null;
+
+        localStorage.removeItem(
+            'vb_token'
+        );
+
+        localStorage.removeItem(
+            'vb_user'
+        );
+
+        window.location.href =
+            '/vendorbridge/frontend/auth/login.html';
+    },
+
+    isLoggedIn() {
+
+        return !!this.token &&
+               !!this.user;
+    },
+
+    hasRole(...roles) {
+
+        return this.user &&
+               roles.includes(
+                   this.user.role
+               );
+    },
+
+    requireAuth() {
+
+        if (!this.isLoggedIn()) {
+
+            window.location.href =
+                '/vendorbridge/frontend/auth/login.html';
+
+            return false;
+        }
+
+        return true;
     }
-    return true;
-  }
 };
 
 // ---- TOAST ----
