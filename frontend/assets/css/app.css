@@ -2,31 +2,66 @@
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
 :root {
-  --bg-primary: #0a0d12;
-  --bg-secondary: #0f1318;
-  --bg-card: #141920;
-  --bg-hover: #1a2030;
-  --border: #1e2a38;
-  --border-light: #253040;
-  --accent: #00d4aa;
-  --accent-dim: rgba(0, 212, 170, 0.12);
-  --accent-hover: #00f0c0;
-  --danger: #ff4757;
-  --danger-dim: rgba(255,71,87,0.12);
-  --warning: #ffa502;
-  --warning-dim: rgba(255,165,2,0.12);
-  --info: #3498db;
-  --info-dim: rgba(52,152,219,0.12);
-  --success: #2ed573;
-  --success-dim: rgba(46,213,115,0.12);
-  --text-primary: #e8ecf0;
-  --text-secondary: #7a8fa6;
-  --text-muted: #3d5068;
+  /* =========================
+     BASE LUXURY COLOR SYSTEM
+     ========================= */
+
+  /* Core brand colors */
+  --primary: #381932;           /* Deep purple */
+  --primary-light: #5a2a4f;
+  --primary-soft: rgba(56, 25, 50, 0.12);
+
+  --secondary: #FFF3E6;         /* Soft cream */
+  --secondary-deep: #f5e3d3;
+  --secondary-muted: rgba(255, 243, 230, 0.7);
+
+  /* Backgrounds (luxury layered depth) */
+  --bg-primary: #12080f;        /* near-black purple tint */
+  --bg-secondary: #1b0d18;      
+  --bg-card: #24111f;           
+  --bg-hover: #2e1628;
+
+  /* Borders (soft, not harsh) */
+  --border: rgba(255, 243, 230, 0.08);
+  --border-light: rgba(255, 243, 230, 0.14);
+
+  /* Accent system (derived from purple/cream blend) */
+  --accent: #7a456c;            /* muted elegant pink-purple */
+  --accent-hover: #e3b7d8;
+  --accent-dim: rgba(214, 165, 201, 0.12);
+
+  /* Status colors (muted luxury style) */
+  --danger: #e05c6a;
+  --danger-dim: rgba(224, 92, 106, 0.12);
+
+  --warning: #e3b36a;
+  --warning-dim: rgba(227, 179, 106, 0.12);
+
+  --info: #7aa6c2;
+  --info-dim: rgba(122, 166, 194, 0.12);
+
+  --success: #7ccf9a;
+  --success-dim: rgba(124, 207, 154, 0.12);
+
+  /* Typography */
+  --text-primary: #FFF3E6;      /* cream for main text */
+  --text-secondary: rgba(255, 243, 230, 0.72);
+  --text-muted: rgba(255, 243, 230, 0.45);
+
+  /* Layout */
   --sidebar-w: 240px;
   --topbar-h: 64px;
-  --radius: 10px;
-  --radius-sm: 6px;
-  --shadow: 0 4px 24px rgba(0,0,0,0.4);
+
+  /* Shape system (premium soft UI) */
+  --radius: 14px;
+  --radius-sm: 10px;
+
+  /* Shadow (luxury depth, not harsh black) */
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+
+  /* Glow (subtle premium highlight) */
+  --glow: 0 0 0 1px rgba(255, 243, 230, 0.05),
+          0 8px 30px rgba(56, 25, 50, 0.35);
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
