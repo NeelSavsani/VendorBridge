@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Invoices — VendorBridge</title>
+  <link rel="icon" type="image/x-icon" href="../assets/images/favicon_io/favicon.ico">
   <link rel="stylesheet" href="../assets/css/app.css">
   <style>
     @media print {
@@ -130,11 +131,31 @@ let currentInvoiceId = null;
 
 async function loadInvoices() {
   try {
-    allInvoices = await api.get('/invoices');
+
+    const response = await api.get('/invoices');
+
+    console.log('Invoices Response:', response);
+
+    allInvoices =
+      response.invoices ||
+      response.data?.invoices ||
+      [];
+
     renderInvoices(allInvoices);
-  } catch(ex) {
-    toast.error(ex.message);
-    document.getElementById('invoices-tbody').innerHTML = `<tr><td colspan="9" class="text-center text-muted">Failed to load</td></tr>`;
+
+  } catch (ex) {
+
+    console.error(ex);
+
+    toast.error(ex.message || 'Failed to load invoices');
+
+    document.getElementById('invoices-tbody').innerHTML = `
+      <tr>
+        <td colspan="9" class="text-center text-muted">
+          Failed to load invoices
+        </td>
+      </tr>
+    `;
   }
 }
 
