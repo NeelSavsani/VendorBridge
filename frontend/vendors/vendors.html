@@ -102,11 +102,51 @@ let allVendors = [];
 
 async function loadVendors() {
   try {
-    allVendors = await api.get('/vendors');
+
+    const response = await api.get('/vendors');
+
+    console.log('Vendor API Response:', response);
+
+    // Handle different API response structures
+    if (Array.isArray(response)) {
+      allVendors = response;
+    }
+    else if (response.data && Array.isArray(response.data)) {
+      allVendors = response.data;
+    }
+    else if (
+      response.data &&
+      response.data.vendors &&
+      Array.isArray(response.data.vendors)
+    ) {
+      allVendors = response.data.vendors;
+    }
+    else if (
+      response.vendors &&
+      Array.isArray(response.vendors)
+    ) {
+      allVendors = response.vendors;
+    }
+    else {
+      allVendors = [];
+      console.error('Unexpected response format:', response);
+    }
+
     renderVendors(allVendors);
-  } catch(ex) {
+
+  } catch (ex) {
+
+    console.error('Load Vendors Error:', ex);
+
     toast.error(ex.message);
-    document.getElementById('vendors-tbody').innerHTML = `<tr><td colspan="8" class="text-center text-muted">Failed to load vendors</td></tr>`;
+
+    document.getElementById('vendors-tbody').innerHTML = `
+      <tr>
+        <td colspan="8" class="text-center text-muted">
+          Failed to load vendors
+        </td>
+      </tr>
+    `;
   }
 }
 
