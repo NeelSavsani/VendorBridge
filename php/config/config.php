@@ -18,7 +18,10 @@ define('APP_VERSION', '1.0.0');
 define('APP_URL', 'http://localhost:8000');
 
 // Security
-define('JWT_SECRET', 'vendorbridge_secret_key_2025_hackathon');
+define(
+    'JWT_SECRET',
+    'vb_9F#kL82@xQp7!Vn$4ZrW1mJc6YtE3sA'
+);
 
 // File Uploads
 define('UPLOAD_PATH', dirname(__DIR__) . '/uploads/');
@@ -74,7 +77,7 @@ function json_response($data, $code = 200)
     echo json_encode(
         $data,
         JSON_UNESCAPED_UNICODE |
-        JSON_UNESCAPED_SLASHES
+            JSON_UNESCAPED_SLASHES
     );
 
     exit;
@@ -118,7 +121,6 @@ function log_activity(
             $description,
             $ip
         ]);
-
     } catch (Exception $e) {
         // Silent fail
     }
@@ -152,7 +154,6 @@ function create_notification(
             $title,
             $message
         ]);
-
     } catch (Exception $e) {
         // Silent fail
     }
@@ -186,7 +187,6 @@ function log_email(
             $recipient_email,
             $status
         ]);
-
     } catch (Exception $e) {
         // Silent fail
     }
