@@ -75,8 +75,9 @@ try {
 
     $pdfUrl =
         APP_URL .
-        '/invoice/pdf.php/' .
-        $invoice['id'];
+        '/api/invoices/' .
+        $invoice['id'] .
+        '/pdf';
 
     // ========================================
     // Email Content
@@ -132,8 +133,8 @@ try {
             $invoice['user_id'],
             'Invoice Sent',
             'Invoice ' .
-            $invoice['invoice_number'] .
-            ' has been sent to your registered email.'
+                $invoice['invoice_number'] .
+                ' has been sent to your registered email.'
         );
     }
 
@@ -173,7 +174,7 @@ try {
         'invoice',
         $invoice['id'],
         'Invoice emailed to ' .
-        $invoice['vendor_email']
+            $invoice['vendor_email']
     );
 
     // ========================================
@@ -185,13 +186,12 @@ try {
         [
             'invoice_id' => $invoice['id'],
             'invoice_number' =>
-                $invoice['invoice_number'],
+            $invoice['invoice_number'],
             'recipient' =>
-                $invoice['vendor_email'],
+            $invoice['vendor_email'],
             'status' => 'sent'
         ]
     );
-
 } catch (Exception $e) {
 
     if ($db->inTransaction()) {
