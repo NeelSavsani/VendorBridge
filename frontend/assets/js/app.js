@@ -1,6 +1,8 @@
 // VendorBridge - Core App JS
 
-const API_BASE = '/api';
+const API_BASE =
+    window.location.origin +
+    '/vendorbridge/php/index.php/api';
 
 // ---- API CLIENT ----
 const api = {
@@ -12,9 +14,36 @@ const api = {
     };
     if (token) opts.headers['Authorization'] = `Bearer ${token}`;
     if (data) opts.body = JSON.stringify(data);
-    const res = await fetch(API_BASE + path, opts);
-    const json = await res.json();
-    if (!res.ok) throw { status: res.status, message: json.error || 'Request failed', data: json };
+    const res =
+    await fetch(
+        API_BASE + path,
+        opts
+    );
+
+    let json;
+
+    try {
+        json =
+            await res.json();
+    }
+    catch {
+        json = {
+            error:
+                'Invalid server response'
+        };
+    }
+
+    if (!res.ok) {
+
+        throw {
+            status: res.status,
+            message:
+                json.error ||
+                'Request failed',
+            data: json
+        };
+    }
+
     return json;
   },
   get: (path) => api.request('GET', path),
@@ -46,7 +75,8 @@ const auth = {
     this.user = null;
     localStorage.removeItem('vb_token');
     localStorage.removeItem('vb_user');
-    window.location.href = '/public/pages/login.html';
+    window.location.href =
+    '/vendorbridge/frontend/auth/login.html';
   },
 
   isLoggedIn() { return !!this.token && !!this.user; },
@@ -54,7 +84,8 @@ const auth = {
   
   requireAuth() {
     if (!this.isLoggedIn()) {
-      window.location.href = '/public/pages/login.html';
+      window.location.href =
+    '/vendorbridge/frontend/auth/login.html';
       return false;
     }
     return true;
@@ -215,20 +246,45 @@ function render_sidebar(activePage) {
   `;
 }
 
-function navigate(page) {
-  const pages = {
-    'dashboard':       '/public/pages/dashboard.html',
-    'vendors':         '/public/pages/vendors.html',
-    'rfqs':            '/public/pages/rfqs.html',
-    'quotations':      '/public/pages/quotations.html',
-    'approvals':       '/public/pages/approvals.html',
-    'purchase-orders': '/public/pages/purchase-orders.html',
-    'invoices':        '/public/pages/invoices.html',
-    'activity':        '/public/pages/activity.html',
-    'reports':         '/public/pages/reports.html',
-    'users':           '/public/pages/users.html',
-  };
-  if (pages[page]) window.location.href = pages[page];
+function navigate(page)
+{
+    const pages = {
+
+        dashboard:
+            '/vendorbridge/frontend/dashboard/dashboard.html',
+
+        vendors:
+            '/vendorbridge/frontend/vendors/vendors.html',
+
+        rfqs:
+            '/vendorbridge/frontend/rfq/rfqs.html',
+
+        quotations:
+            '/vendorbridge/frontend/quotations/quotations.html',
+
+        approvals:
+            '/vendorbridge/frontend/approvals/approvals.html',
+
+        'purchase-orders':
+            '/vendorbridge/frontend/purchase-orders/purchase-orders.html',
+
+        invoices:
+            '/vendorbridge/frontend/invoices/invoices.html',
+
+        activity:
+            '/vendorbridge/frontend/activity/activity.html',
+
+        reports:
+            '/vendorbridge/frontend/reports/reports.html',
+
+        users:
+            '/vendorbridge/frontend/dashboard/users.html'
+    };
+
+    if (pages[page]) {
+        window.location.href =
+            pages[page];
+    }
 }
 
 // Init auth on load
