@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RFQs — VendorBridge</title>
+  <link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar"></aside>
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-left">
+        <div><div class="page-title">RFQs</div><div class="page-subtitle">Request for Quotations</div></div>
+      </div>
+      <div class="topbar-right">
+        <button class="btn btn-primary" id="create-rfq-btn" onclick="openCreateModal()">+ Create RFQ</button>
+      </div>
+    </div>
+    <div class="page-content">
+      <div class="card">
+        <div class="filter-bar">
+          <div class="search-bar">
+            <span class="search-icon">🔍</span>
+            <input type="text" placeholder="Search RFQs..." id="search-input" oninput="filterRFQs()">
+          </div>
+          <select id="filter-status" onchange="filterRFQs()" style="width:140px;">
+            <option value="">All Status</option>
+            <option value="open">Open</option>
+            <option value="closed">Closed</option>
+            <option value="draft">Draft</option>
+          </select>
+          <select id="filter-category" onchange="filterRFQs()" style="width:150px;">
+            <option value="">All Categories</option>
+            <option>IT Hardware</option><option>Furniture</option>
+            <option>Stationery</option><option>Logistics</option><option>General</option>
+          </select>
+        </div>
+        <div class="table-container">
+          <table>
+            <thead><tr>
+              <th>RFQ Number</th><th>Title</th><th>Category</th><th>Budget</th>
+              <th>Deadline</th><th>Status</th><th>Quotes</th><th>Actions</th>
+            </tr></thead>
+            <tbody id="rfq-tbody">
+              <tr><td colspan="8" class="text-center"><div class="spinner"></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Create/Edit RFQ Modal -->
+<div class="modal-overlay hidden" id="rfq-modal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-title">Create RFQ</div>
+      <button class="btn btn-secondary btn-sm btn-icon" onclick="modal.close('rfq-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group" style="flex:2;">
+          <label>RFQ Title *</label>
+          <input id="rfq-title" placeholder="e.g. Office Furniture Procurement Q2">
+        </div>
+        <div class="form-group">
+          <label>Category</label>
+          <select id="rfq-category">
+            <option>IT Hardware</option><option>Furniture</option>
+            <option>Stationery</option><option>Logistics</option><option>General</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Description</label>
+        <textarea id="rfq-desc" rows="3" placeholder="Detailed description of procurement requirements..."></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Budget (₹)</label>
+          <input id="rfq-budget" type="number" placeholder="500000">
+        </div>
+        <div class="form-group">
+          <label>Deadline *</label>
+          <input id="rfq-deadline" type="date">
+        </div>
+        <div class="form-group">
+          <label>Delivery Location</label>
+          <input id="rfq-location" placeholder="Mumbai, Maharashtra">
+        </div>
+      </div>
+
+      <!-- Items -->
+      <div style="margin-bottom:16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <label style="margin:0;font-weight:600;">Items / Products</label>
+          <button class="btn btn-secondary btn-sm" onclick="addItem()">+ Add Item</button>
+        </div>
+        <div class="table-container">
+          <table id="items-table">
+            <thead><tr>
+              <th>Item Name</th><th>Specification</th><th>Quantity</th><th>Unit</th><th></th>
+            </tr></thead>
+            <tbody id="items-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Vendor Assignment -->
+      <div class="form-group">
+        <label>Assign Vendors</label>
+        <div id="vendor-checkboxes" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-height:150px;overflow-y:auto;padding:8px;background:var(--bg-secondary);border-radius:var(--radius-sm);border:1px solid var(--border);">
+          <div class="spinner"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="modal.close('rfq-modal')">Cancel</button>
+      <button class="btn btn-primary" id="save-rfq-btn" onclick="saveRFQ()">Create RFQ</button>
+    </div>
+  </div>
+</div>
+
+<!-- View RFQ Modal -->
+<div class="modal-overlay hidden" id="view-modal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div class="modal-title" id="view-title">RFQ Details</div>
+      <button class="btn btn-secondary btn-sm btn-icon" onclick="modal.close('view-modal')">✕</button>
+    </div>
+    <div class="modal-body" id="view-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="modal.close('view-modal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="../assets/js/app.js"></script>
+<script>
+if (!auth.requireAuth()) throw '';
+render_sidebar('rfqs');
+
+let allRFQs = [];
+let editId = null;
+let itemCount = 0;
+
+// Hide create button for vendors
+if (auth.hasRole('vendor')) {
+  document.getElementById('create-rfq-btn').style.display = 'none';
+}
+
+async function loadRFQs() {
+  try {
+    allRFQs = await api.get('/rfqs');
+    renderRFQs(allRFQs);
+  } catch(ex) {
+    toast.error(ex.message);
+    document.getElementById('rfq-tbody').innerHTML = `<tr><td colspan="8" class="text-center text-muted">Failed to load RFQs</td></tr>`;
+  }
+}
+
+function renderRFQs(rfqs) {
+  if (!rfqs.length) {
+    document.getElementById('rfq-tbody').innerHTML = `
+      <tr><td colspan="8"><div class="empty-state">
+        <div class="empty-icon">📝</div>
+        <div class="empty-title">No RFQs found</div>
+        <div class="empty-text">Create your first RFQ to start the procurement process</div>
+        ${auth.hasRole('procurement_officer','admin') ? '<button class="btn btn-primary" onclick="openCreateModal()">+ Create RFQ</button>' : ''}
+      </div></td></tr>`;
+    return;
+  }
+  document.getElementById('rfq-tbody').innerHTML = rfqs.map(r => `
+    <tr style="cursor:pointer;" onclick="viewRFQ(${r.id})">
+      <td class="font-mono fw-600">${r.rfq_number}</td>
+      <td>
+        <div class="fw-600">${r.title}</div>
+        <div class="text-sm text-muted">${r.delivery_location || ''}</div>
+      </td>
+      <td><span class="badge badge-blue">${r.category || 'General'}</span></td>
+      <td>${r.budget ? fmt_currency(r.budget) : '—'}</td>
+      <td class="font-mono">${fmt_date(r.deadline)}</td>
+      <td>${status_badge(r.status)}</td>
+      <td><span class="badge badge-gray">${r.quote_count || 0} quotes</span></td>
+      <td class="actions-col" onclick="event.stopPropagation()">
+        ${auth.hasRole('procurement_officer','admin') ? `<button class="btn btn-secondary btn-sm" onclick="editRFQ(${r.id})">Edit</button>` : ''}
+        <button class="btn btn-secondary btn-sm" onclick="viewRFQ(${r.id})">View</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function filterRFQs() {
+  const q = document.getElementById('search-input').value.toLowerCase();
+  const status = document.getElementById('filter-status').value;
+  const cat = document.getElementById('filter-category').value;
+  renderRFQs(allRFQs.filter(r =>
+    (!q || r.title?.toLowerCase().includes(q) || r.rfq_number?.toLowerCase().includes(q)) &&
+    (!status || r.status === status) &&
+    (!cat || r.category === cat)
+  ));
+}
+
+function addItem(item = {}) {
+  itemCount++;
+  const id = itemCount;
+  const tr = document.createElement('tr');
+  tr.id = `item-row-${id}`;
+  tr.innerHTML = `
+    <td><input class="item-name" placeholder="Laptop" value="${item.item_name || ''}"></td>
+    <td><input class="item-spec" placeholder="Core i7, 16GB RAM" value="${item.specifications || ''}"></td>
+    <td><input class="item-qty" type="number" placeholder="10" style="width:80px;" value="${item.quantity || ''}"></td>
+    <td><input class="item-unit" placeholder="pcs" style="width:70px;" value="${item.unit || 'pcs'}"></td>
+    <td><button class="btn btn-danger btn-sm btn-icon" onclick="document.getElementById('item-row-${id}').remove()">✕</button></td>
+  `;
+  document.getElementById('items-tbody').appendChild(tr);
+}
+
+async function loadVendors() {
+  try {
+    const vendors = await api.get('/vendors');
+    document.getElementById('vendor-checkboxes').innerHTML = vendors.filter(v=>v.status==='active').map(v => `
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:6px;border-radius:6px;transition:background 0.2s;" 
+             onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background=''">
+        <input type="checkbox" class="vendor-cb" value="${v.id}" style="accent-color:var(--accent);">
+        <span>${v.company_name}</span>
+      </label>
+    `).join('') || '<span class="text-muted text-sm">No active vendors found</span>';
+  } catch(ex) {
+    document.getElementById('vendor-checkboxes').innerHTML = '<span class="text-muted text-sm">Failed to load vendors</span>';
+  }
+}
+
+function openCreateModal() {
+  editId = null;
+  document.getElementById('modal-title').textContent = 'Create RFQ';
+  document.getElementById('save-rfq-btn').textContent = 'Create RFQ';
+  document.getElementById('save-rfq-btn').onclick = saveRFQ;
+  ['rfq-title','rfq-desc','rfq-budget','rfq-location'].forEach(id => document.getElementById(id).value='');
+  document.getElementById('rfq-deadline').value = '';
+  document.getElementById('items-tbody').innerHTML = '';
+  itemCount = 0;
+  addItem();
+  document.querySelectorAll('.vendor-cb').forEach(cb => cb.checked = false);
+  loadVendors();
+  modal.open('rfq-modal');
+}
+
+async function editRFQ(id) {
+  try {
+    const r = await api.get(`/rfqs/${id}`);
+    editId = id;
+    document.getElementById('modal-title').textContent = 'Edit RFQ';
+    document.getElementById('save-rfq-btn').textContent = 'Update RFQ';
+    document.getElementById('save-rfq-btn').onclick = () => updateRFQ(id);
+    document.getElementById('rfq-title').value = r.title;
+    document.getElementById('rfq-desc').value = r.description || '';
+    document.getElementById('rfq-budget').value = r.budget || '';
+    document.getElementById('rfq-deadline').value = r.deadline?.substring(0,10) || '';
+    document.getElementById('rfq-location').value = r.delivery_location || '';
+    document.getElementById('rfq-category').value = r.category || 'General';
+    document.getElementById('items-tbody').innerHTML = '';
+    itemCount = 0;
+    if (r.items?.length) r.items.forEach(item => addItem(item));
+    else addItem();
+    await loadVendors();
+    if (r.vendor_ids?.length) {
+      r.vendor_ids.forEach(vid => {
+        const cb = document.querySelector(`.vendor-cb[value="${vid}"]`);
+        if (cb) cb.checked = true;
+      });
+    }
+    modal.open('rfq-modal');
+  } catch(ex) { toast.error(ex.message); }
+}
+
+function getFormData() {
+  const items = [];
+  document.querySelectorAll('#items-tbody tr').forEach(tr => {
+    const name = tr.querySelector('.item-name')?.value?.trim();
+    if (name) items.push({
+      item_name: name,
+      specifications: tr.querySelector('.item-spec')?.value || '',
+      quantity: parseFloat(tr.querySelector('.item-qty')?.value) || 1,
+      unit: tr.querySelector('.item-unit')?.value || 'pcs'
+    });
+  });
+  const vendor_ids = [...document.querySelectorAll('.vendor-cb:checked')].map(cb => parseInt(cb.value));
+  return {
+    title: document.getElementById('rfq-title').value.trim(),
+    description: document.getElementById('rfq-desc').value,
+    category: document.getElementById('rfq-category').value,
+    budget: parseFloat(document.getElementById('rfq-budget').value) || null,
+    deadline: document.getElementById('rfq-deadline').value,
+    delivery_location: document.getElementById('rfq-location').value,
+    items, vendor_ids
+  };
+}
+
+async function saveRFQ() {
+  const data = getFormData();
+  if (!data.title) { toast.error('Title is required'); return; }
+  if (!data.deadline) { toast.error('Deadline is required'); return; }
+  const btn = document.getElementById('save-rfq-btn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+  try {
+    await api.post('/rfqs', data);
+    toast.success('RFQ created successfully!');
+    modal.close('rfq-modal');
+    loadRFQs();
+  } catch(ex) { toast.error(ex.message); }
+  finally { btn.disabled = false; btn.textContent = 'Create RFQ'; }
+}
+
+async function updateRFQ(id) {
+  const data = getFormData();
+  if (!data.title) { toast.error('Title is required'); return; }
+  const btn = document.getElementById('save-rfq-btn');
+  btn.disabled = true;
+  try {
+    await api.put(`/rfqs/${id}`, data);
+    toast.success('RFQ updated!');
+    modal.close('rfq-modal');
+    loadRFQs();
+  } catch(ex) { toast.error(ex.message); }
+  finally { btn.disabled = false; btn.textContent = 'Update RFQ'; }
+}
+
+async function viewRFQ(id) {
+  try {
+    const r = await api.get(`/rfqs/${id}`);
+    document.getElementById('view-title').textContent = `${r.rfq_number} — ${r.title}`;
+    document.getElementById('view-body').innerHTML = `
+      <div class="grid-21" style="margin-bottom:20px;">
+        <div>
+          <div style="display:grid;gap:12px;">
+            <div><span class="text-muted text-sm">Category</span><div class="fw-600">${r.category || 'General'}</div></div>
+            <div><span class="text-muted text-sm">Budget</span><div class="fw-600">${r.budget ? fmt_currency(r.budget) : 'Not specified'}</div></div>
+            <div><span class="text-muted text-sm">Deadline</span><div class="fw-600 font-mono">${fmt_date(r.deadline)}</div></div>
+            <div><span class="text-muted text-sm">Delivery Location</span><div class="fw-600">${r.delivery_location || '—'}</div></div>
+            <div><span class="text-muted text-sm">Status</span><div>${status_badge(r.status)}</div></div>
+          </div>
+        </div>
+        <div>
+          <div class="text-muted text-sm mb-8">Description</div>
+          <div style="background:var(--bg-secondary);padding:12px;border-radius:8px;line-height:1.7;">${r.description || 'No description provided.'}</div>
+        </div>
+      </div>
+      ${r.items?.length ? `
+        <div>
+          <div class="fw-600 mb-12">Items Required</div>
+          <div class="table-container">
+            <table>
+              <thead><tr><th>Item</th><th>Specification</th><th>Qty</th><th>Unit</th></tr></thead>
+              <tbody>${r.items.map(i => `
+                <tr>
+                  <td class="fw-600">${i.item_name}</td>
+                  <td class="text-muted">${i.specifications || '—'}</td>
+                  <td>${i.quantity}</td>
+                  <td>${i.unit}</td>
+                </tr>`).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>` : ''}
+    `;
+    modal.open('view-modal');
+  } catch(ex) { toast.error(ex.message); }
+}
+
+loadRFQs();
+</script>
+</body>
+</html>
