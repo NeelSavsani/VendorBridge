@@ -1,133 +1,227 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Register — VendorBridge</title>
-  <link rel="stylesheet" href="../assets/css/app.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-</head>
-<body>
-<div class="auth-page">
-  <div class="auth-box" style="max-width:520px;">
-<div class="auth-logo">
-  <div class="logo-icon">
-    <img src="../assets/images/Logo.png" alt="VendorBridge Logo">
-  </div>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Register — VendorBridge</title>
+    <link rel="stylesheet" href="../assets/css/app.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+    />
+  </head>
+  <body>
+    <div class="auth-page">
+      <div class="auth-box" style="max-width: 520px">
+        <div class="auth-logo">
+          <div class="logo-icon">
+            <img src="../assets/images/Logo.png" alt="VendorBridge Logo" />
+          </div>
 
-  <div class="logo-text">Vendor<span>Bridge</span></div>
+          <div class="logo-text">Vendor<span>Bridge</span></div>
 
-  <button id="theme-toggle" class="theme-toggle">
-    <i class="fa-solid fa-moon"></i>
-  </button>
-</div>
-    <h1 class="auth-title">Create account</h1>
-    <p class="auth-subtitle">Join the VendorBridge procurement platform</p>
-
-    <div id="error-msg" class="alert alert-error hidden"></div>
-    <div id="success-msg" class="alert alert-success hidden"></div>
-
-    <form id="reg-form">
-      <div class="form-row">
-        <div class="form-group">
-          <label>Full Name *</label>
-          <input type="text" id="name" placeholder="John Doe" required>
+          <button id="theme-toggle" class="theme-toggle">
+            <i class="fa-solid fa-moon"></i>
+          </button>
         </div>
-        <div class="form-group">
-          <label>Company Name</label>
-          <input type="text" id="company" placeholder="Acme Corp">
+        <h1 class="auth-title">Create account</h1>
+        <p class="auth-subtitle">Join the VendorBridge procurement platform</p>
+
+        <div id="error-msg" class="alert alert-error hidden"></div>
+        <div id="success-msg" class="alert alert-success hidden"></div>
+
+        <form id="reg-form">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Full Name *</label>
+              <input type="text" id="name" placeholder="John Doe" required />
+            </div>
+            <div class="form-group">
+              <label>Company Name</label>
+              <input type="text" id="company" placeholder="Acme Corp" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Email Address *</label>
+              <input
+                type="email"
+                id="email"
+                placeholder="you@company.com"
+                required
+              />
+            </div>
+            <div class="form-group">
+              <label>Phone</label>
+              <input
+                type="tel"
+                id="phone"
+                placeholder="9876543210"
+                maxlength="10"
+                pattern="[0-9]{10}"
+                oninput="this.value = this.value.replace(/[^0-9]/g, '')"
+                required
+              />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Role *</label>
+              <select id="role">
+                <option value="vendor">Vendor</option>
+                <option value="procurement_officer">Procurement Officer</option>
+                <option value="manager">Manager / Approver</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Country</label>
+              <input
+                type="text"
+                id="country"
+                placeholder="India"
+                value="India"
+              />
+            </div>
+          </div>
+          <div class="form-group" id="vendor-extra" style="display: none">
+            <label>GST Number</label>
+            <input type="text" id="gst_number" placeholder="22AAAAA0000A1Z5" />
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Password *</label>
+              <div class="password-wrapper">
+                <input
+                  type="password"
+                  id="password"
+                  minlength="8"
+                  maxlength="8"
+                  placeholder="Exactly 8 characters"
+                  required
+                />
+                <span
+                  class="password-toggle"
+                  onclick="togglePassword('password', this)"
+                >
+                  <i class="fa-regular fa-eye"></i>
+                </span>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Confirm Password *</label>
+              <div class="password-wrapper">
+                <input
+                  type="password"
+                  id="confirm_password"
+                  minlength="8"
+                  maxlength="8"
+                  placeholder="Re-enter password"
+                  required
+                />
+                <span
+                  class="password-toggle"
+                  onclick="togglePassword('confirm_password', this)"
+                >
+                  <i class="fa-regular fa-eye"></i>
+                </span>
+              </div>
+            </div>
+          </div>
+          <button
+            type="submit"
+            class="btn btn-primary btn-block btn-lg"
+            id="reg-btn"
+          >
+            Create Account
+          </button>
+        </form>
+        <div
+          style="
+            margin-top: 16px;
+            text-align: center;
+            font-size: 13px;
+            color: var(--text-secondary);
+          "
+        >
+          Already have an account? <a href="login.html">Login</a>
         </div>
       </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>Email Address *</label>
-          <input type="email" id="email" placeholder="you@company.com" required>
-        </div>
-        <div class="form-group">
-          <label>Phone</label>
-          <input type="text" id="phone" placeholder="+91-XXXXXXXXXX">
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>Role *</label>
-          <select id="role">
-            <option value="vendor">Vendor</option>
-            <option value="procurement_officer">Procurement Officer</option>
-            <option value="manager">Manager / Approver</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Country</label>
-          <input type="text" id="country" placeholder="India" value="India">
-        </div>
-      </div>
-      <div class="form-group" id="vendor-extra" style="display:none;">
-        <label>GST Number</label>
-        <input type="text" id="gst_number" placeholder="22AAAAA0000A1Z5">
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-  <label>Password *</label>
-  <div class="password-wrapper">
-    <input type="password" id="password" placeholder="Min 8 characters" required>
-<span class="password-toggle" onclick="togglePassword('password', this)">
-  <i class="fa-regular fa-eye"></i>
-</span>  </div>
-</div>
-
-<div class="form-group">
-  <label>Confirm Password *</label>
-  <div class="password-wrapper">
-    <input type="password" id="confirm_password" placeholder="Re-enter password" required>
-<span class="password-toggle" onclick="togglePassword('confirm_password', this)">
-  <i class="fa-regular fa-eye"></i>
-</span>
-  </div>
-</div>
-      </div>
-      <button type="submit" class="btn btn-primary btn-block btn-lg" id="reg-btn">
-        Create Account
-      </button>
-    </form>
-    <div style="margin-top:16px; text-align:center; font-size:13px; color:var(--text-secondary);">
-      Already have an account? <a href="login.html">Login</a>
     </div>
-  </div>
-</div>
-<script src="../js/app.js"></script>
-<script>
-const themeToggle = document.getElementById('theme-toggle');
+    <script src="../assets/js/app.js"></script>
+    <script>
+      const themeToggle = document.getElementById("theme-toggle");
 
-function updateThemeIcon() {
-  const isLight = document.body.classList.contains('light-theme');
+      function updateThemeIcon() {
+        const isLight = document.body.classList.contains("light-theme");
 
-  themeToggle.innerHTML = isLight
-    ? '<i class="fa-solid fa-sun"></i>'
-    : '<i class="fa-solid fa-moon"></i>';
-}
+        themeToggle.innerHTML = isLight
+          ? '<i class="fa-solid fa-sun"></i>'
+          : '<i class="fa-solid fa-moon"></i>';
+      }
 
-// Load saved theme
-if (localStorage.getItem('theme') === 'light') {
-  document.body.classList.add('light-theme');
-}
+      // Load saved theme
+      if (localStorage.getItem("theme") === "light") {
+        document.body.classList.add("light-theme");
+      }
 
-updateThemeIcon();
+      updateThemeIcon();
 
-// Toggle theme
-themeToggle.addEventListener('click', () => {
-  document.body.classList.toggle('light-theme');
+      // Toggle theme
+      themeToggle.addEventListener("click", () => {
+        document.body.classList.toggle("light-theme");
 
-  const isLight = document.body.classList.contains('light-theme');
+        const isLight = document.body.classList.contains("light-theme");
 
-  localStorage.setItem(
-    'theme',
-    isLight ? 'light' : 'dark'
-  );
+        localStorage.setItem("theme", isLight ? "light" : "dark");
 
-  updateThemeIcon();
-});
+        updateThemeIcon();
+      });
+      document
+        .getElementById("reg-form")
+        .addEventListener("submit", function (e) {
+          const password = document.getElementById("password").value;
+          const confirmPassword =
+            document.getElementById("confirm_password").value;
+          const phone = document.getElementById("phone").value.trim();
+          const email = document.getElementById("email").value.trim();
 
-</script>
-</body>
+          const errorBox = document.getElementById("error-msg");
+
+          errorBox.classList.add("hidden");
+
+          // Password exactly 8 characters
+          if (password.length !== 8) {
+            e.preventDefault();
+            errorBox.textContent = "Password must be exactly 8 characters";
+            errorBox.classList.remove("hidden");
+            return;
+          }
+
+          // Mobile exactly 10 digits
+          if (!/^[0-9]{10}$/.test(phone)) {
+            e.preventDefault();
+            errorBox.textContent = "Mobile number must be exactly 10 digits";
+            errorBox.classList.remove("hidden");
+            return;
+          }
+
+          // Email validation
+          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            e.preventDefault();
+            errorBox.textContent = "Enter a valid email address";
+            errorBox.classList.remove("hidden");
+            return;
+          }
+
+          // Confirm password
+          if (password !== confirmPassword) {
+            e.preventDefault();
+            errorBox.textContent = "Passwords do not match";
+            errorBox.classList.remove("hidden");
+            return;
+          }
+        });
+    </script>
+  </body>
 </html>
