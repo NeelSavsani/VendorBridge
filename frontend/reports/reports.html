@@ -109,19 +109,87 @@ let trendChartInst = null;
 const CHART_COLORS = ['#00d4aa','#3498db','#ffa502','#ff4757','#2ed573','#a29bfe','#fd79a8','#fdcb6e'];
 
 async function loadReports() {
-  const month = document.getElementById('month-picker').value || now.toISOString().substring(0,7);
+  const month =
+    document.getElementById('month-picker').value ||
+    now.toISOString().substring(0, 7);
+
   try {
-    const data = await api.get(`/reports?month=${month}`);
-    renderKPIs(data, month);
-    renderTopVendors(data.top_vendors || []);
-    renderCategoryBreakdown(data.spend_by_category || []);
-    renderCategoryChart(data.spend_by_category || []);
-    renderTrendChart(data.monthly_trend || []);
-  } catch(ex) {
-    toast.error('Failed to load reports: ' + ex.message);
+
+    const spending =
+      await api.get(`/reports/spending?month=${month}`);
+
+    const vendors =
+      await api.get(`/reports/vendors?month=${month}`);
+
+    const procurement =
+      await api.get(`/reports/procurement?month=${month}`);
+
+    const reportData = {
+
+      total_spend:
+        spending.total_spend ||
+        spending.data?.total_spend ||
+        0,
+
+      budget:
+        spending.budget ||
+        spending.data?.budget ||
+        0,
+
+      savings_pct:
+        spending.savings_pct ||
+        spending.data?.savings_pct ||
+        0,
+
+      invoices_count:
+        procurement.invoices_count ||
+        procurement.data?.invoices_count ||
+        0,
+
+      active_vendors:
+        procurement.active_vendors ||
+        procurement.data?.active_vendors ||
+        0,
+
+      spend_by_category:
+        spending.spend_by_category ||
+        spending.data?.spend_by_category ||
+        [],
+
+      monthly_trend:
+        spending.monthly_trend ||
+        spending.data?.monthly_trend ||
+        [],
+
+      top_vendors:
+        vendors.top_vendors ||
+        vendors.data?.top_vendors ||
+        []
+    };
+
+    renderKPIs(reportData, month);
+    renderTopVendors(reportData.top_vendors);
+    renderCategoryBreakdown(reportData.spend_by_category);
+    renderCategoryChart(reportData.spend_by_category);
+    renderTrendChart(reportData.monthly_trend);
+
+  } catch (ex) {
+
+    console.error('Reports Error:', ex);
+
+    toast.error(
+      ex.message || 'Failed to load reports'
+    );
+
+    document.getElementById('kpi-grid').innerHTML = `
+      <div class="stat-card">
+        <div class="text-center text-muted">
+          Failed to load reports
+        </div>
+      </div>
+    `;
   }
 }
-
 function renderKPIs(data, month) {
   const monthLabel = new Date(month + '-01').toLocaleDateString('en-IN', {month:'long', year:'numeric'});
   document.getElementById('kpi-grid').innerHTML = `
