@@ -20,6 +20,16 @@ $uri = parse_url(
     PHP_URL_PATH
 );
 
+// ========================================
+// Localhost Base Path Fix
+// ========================================
+
+$basePath = '/vendorbridge/php/index.php';
+
+if (strpos($uri, $basePath) === 0) {
+    $uri = substr($uri, strlen($basePath));
+}
+
 $uri = rtrim($uri, '/');
 
 if ($uri === '') {
@@ -33,6 +43,7 @@ if ($uri === '') {
 if (
     $uri === '/api'
     || $uri === '/api/'
+    || $uri === '/'
 ) {
 
     json_response([
@@ -243,7 +254,9 @@ foreach ($routes as $pattern => $handler) {
 
             json_response([
                 'success' => false,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'file' => basename($e->getFile()),
+                'line' => $e->getLine()
             ], 500);
         }
 
