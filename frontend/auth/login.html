@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -24,7 +24,7 @@
     <h1 class="auth-title">Welcome back</h1>
     <p class="auth-subtitle">Login to your procurement dashboard</p>
 
-    <div id="error-msg" class="alert alert-error hidden"></div>
+        <div id="error-msg" class="alert alert-error hidden"></div>
 
     <form id="login-form">
       <div class="form-group">
@@ -45,43 +45,120 @@
       </button>
     </form>
 
-    <div style="margin-top:20px; text-align:center; font-size:13px; color:var(--text-secondary)">
-      Don't have an account? <a href="register.html">Register</a>
-    </div>
+        <div
+          style="
+            margin-top: 20px;
+            text-align: center;
+            font-size: 13px;
+            color: var(--text-secondary);
+          "
+        >
+          Don't have an account? <a href="register.html">Register</a>
+        </div>
 
-    <!-- Demo Credentials -->
-    <div style="margin-top:28px; padding:16px; background:var(--bg-secondary); border-radius:8px; border:1px solid var(--border);">
-      <div style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:10px;">Demo Credentials</div>
-      <div style="display:grid; gap:6px; font-size:12px; font-family:'JetBrains Mono',monospace;">
-        <div class="demo-cred" onclick="fill('admin@vendorbridge.com','password')" style="cursor:pointer; padding:6px 8px; border-radius:4px; display:flex; justify-content:space-between; color:var(--text-secondary);">
-          <span>🔑 Admin</span><span>admin@vendorbridge.com</span>
-        </div>
-        <div class="demo-cred" onclick="fill('officer@vendorbridge.com','password')" style="cursor:pointer; padding:6px 8px; border-radius:4px; display:flex; justify-content:space-between; color:var(--text-secondary);">
-          <span>📋 Procurement Officer</span><span>officer@...</span>
-        </div>
-        <div class="demo-cred" onclick="fill('manager@vendorbridge.com','password')" style="cursor:pointer; padding:6px 8px; border-radius:4px; display:flex; justify-content:space-between; color:var(--text-secondary);">
-          <span>✅ Manager</span><span>manager@...</span>
-        </div>
-        <div class="demo-cred" onclick="fill('vendor1@techcore.com','password')" style="cursor:pointer; padding:6px 8px; border-radius:4px; display:flex; justify-content:space-between; color:var(--text-secondary);">
-          <span>🏢 Vendor</span><span>vendor1@techcore.com</span>
+        <!-- Demo Credentials -->
+        <div
+          style="
+            margin-top: 28px;
+            padding: 16px;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            border: 1px solid var(--border);
+          "
+        >
+          <div
+            style="
+              font-size: 11px;
+              font-weight: 700;
+              color: var(--text-muted);
+              text-transform: uppercase;
+              letter-spacing: 0.05em;
+              margin-bottom: 10px;
+            "
+          >
+            Demo Credentials
+          </div>
+          <div
+            style="
+              display: grid;
+              gap: 6px;
+              font-size: 12px;
+              font-family: &quot;JetBrains Mono&quot;, monospace;
+            "
+          >
+            <div
+              class="demo-cred"
+              onclick="fill('admin@vendorbridge.com', 'password')"
+              style="
+                cursor: pointer;
+                padding: 6px 8px;
+                border-radius: 4px;
+                display: flex;
+                justify-content: space-between;
+                color: var(--text-secondary);
+              "
+            >
+              <span>🔑 Admin</span><span>admin@vendorbridge.com</span>
+            </div>
+            <div
+              class="demo-cred"
+              onclick="fill('officer@vendorbridge.com', 'password')"
+              style="
+                cursor: pointer;
+                padding: 6px 8px;
+                border-radius: 4px;
+                display: flex;
+                justify-content: space-between;
+                color: var(--text-secondary);
+              "
+            >
+              <span>📋 Procurement Officer</span><span>officer@...</span>
+            </div>
+            <div
+              class="demo-cred"
+              onclick="fill('manager@vendorbridge.com', 'password')"
+              style="
+                cursor: pointer;
+                padding: 6px 8px;
+                border-radius: 4px;
+                display: flex;
+                justify-content: space-between;
+                color: var(--text-secondary);
+              "
+            >
+              <span>✅ Manager</span><span>manager@...</span>
+            </div>
+            <div
+              class="demo-cred"
+              onclick="fill('vendor1@techcore.com', 'password')"
+              style="
+                cursor: pointer;
+                padding: 6px 8px;
+                border-radius: 4px;
+                display: flex;
+                justify-content: space-between;
+                color: var(--text-secondary);
+              "
+            >
+              <span>🏢 Vendor</span><span>vendor1@techcore.com</span>
+            </div>
+          </div>
+          <div
+            style="font-size: 11px; color: var(--text-muted); margin-top: 8px"
+          >
+            All passwords:
+            <code
+              style="
+                background: var(--bg-card);
+                padding: 1px 5px;
+                border-radius: 3px;
+              "
+              >password</code
+            >
+          </div>
         </div>
       </div>
-      <div style="font-size:11px; color:var(--text-muted); margin-top:8px;">All passwords: <code style="background:var(--bg-card);padding:1px 5px;border-radius:3px;">password</code></div>
     </div>
-  </div>
-</div>
-
-<script src="../js/app.js"></script>
-
-<script>
-// Redirect if already logged in
-if (typeof auth !== 'undefined' && auth.isLoggedIn()) {
-  navigate('dashboard');
-}
-
-/* ==========================
-   DEMO CREDENTIALS
-========================== */
 function fill(email, password, el) {
   document.getElementById('email').value = email;
   document.getElementById('password').value = password;
@@ -97,7 +174,6 @@ function fill(email, password, el) {
 
 /* ==========================
    LOGIN
-========================== */
 document.getElementById('login-form').addEventListener('submit', async (e) => {
   e.preventDefault();
 
@@ -129,7 +205,6 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
 
 /* ==========================
    PASSWORD TOGGLE
-========================== */
 function togglePassword(id, el) {
   const input = document.getElementById(id);
   const icon = el.querySelector('i');
@@ -145,7 +220,6 @@ function togglePassword(id, el) {
 
 /* ==========================
    THEME TOGGLE
-========================== */
 const themeToggle = document.getElementById('theme-toggle');
 
 function updateThemeIcon() {
@@ -182,4 +256,45 @@ themeToggle.addEventListener('click', () => {
 console.log('VendorBridge Login Loaded');
 </script>
 </body>
+
+    <script src="../assets/js/app.js"></script>
+    <script>
+      // Redirect if already logged in
+      if (auth.isLoggedIn()) navigate("dashboard");
+
+      function fill(email, password) {
+        document.getElementById("email").value = email;
+        document.getElementById("password").value = password;
+        document
+          .querySelectorAll(".demo-cred")
+          .forEach((el) => (el.style.background = ""));
+        event.currentTarget.style.background = "var(--accent-dim)";
+      }
+
+      document
+        .getElementById("login-form")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const btn = document.getElementById("login-btn");
+          const err = document.getElementById("error-msg");
+          err.classList.add("hidden");
+          btn.disabled = true;
+          btn.innerHTML = '<span class="spinner"></span> Signing in...';
+
+          try {
+            const res = await api.post("/auth/login", {
+              email: document.getElementById("email").value,
+              password: document.getElementById("password").value,
+            });
+            auth.login(res.data.token, res.data.user);
+            navigate("dashboard");
+          } catch (ex) {
+            err.textContent = ex.message || "Login failed";
+            err.classList.remove("hidden");
+            btn.disabled = false;
+            btn.textContent = "Sign In";
+          }
+        });
+    </script>
+  </body>
 </html>

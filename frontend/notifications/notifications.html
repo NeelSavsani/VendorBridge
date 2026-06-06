@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notifications — VendorBridge</title>
+    <link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body>
+
+<div class="app-layout">
+    <aside class="sidebar"></aside>
+
+    <div class="main-content">
+
+        <div class="topbar">
+            <div class="topbar-left">
+                <div>
+                    <div class="page-title">Notifications</div>
+                    <div class="page-subtitle">
+                        System alerts and procurement updates
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="page-content">
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">Recent Notifications</div>
+                </div>
+
+                <div id="notification-list">
+
+                    <div class="table-row">
+                        <div>
+                            🔔 New RFQ created for IT Hardware
+                            <small style="display:block;color:gray;">
+                                10 minutes ago
+                            </small>
+                        </div>
+                    </div>
+
+                    <div class="table-row">
+                        <div>
+                            📄 Vendor quotation submitted
+                            <small style="display:block;color:gray;">
+                                30 minutes ago
+                            </small>
+                        </div>
+                    </div>
+
+                    <div class="table-row">
+                        <div>
+                            ✅ Purchase Order approved
+                            <small style="display:block;color:gray;">
+                                1 hour ago
+                            </small>
+                        </div>
+                    </div>
+
+                    <div class="table-row">
+                        <div>
+                            ⚠ Invoice pending approval
+                            <small style="display:block;color:gray;">
+                                3 hours ago
+                            </small>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+</div>
+
+<script>
+const notifications = [
+    {
+        icon: "🔔",
+        text: "New RFQ created for IT Hardware",
+        time: "10 minutes ago"
+    },
+    {
+        icon: "📄",
+        text: "Vendor quotation submitted",
+        time: "30 minutes ago"
+    },
+    {
+        icon: "✅",
+        text: "Purchase Order approved",
+        time: "1 hour ago"
+    },
+    {
+        icon: "⚠",
+        text: "Invoice pending approval",
+        time: "3 hours ago"
+    }
+];
+
+function loadNotifications() {
+    const container = document.getElementById("notification-list");
+
+    container.innerHTML = notifications.map(item => `
+        <div class="table-row">
+            <div>
+                ${item.icon} ${item.text}
+                <small style="display:block;color:gray;">
+                    ${item.time}
+                </small>
+            </div>
+        </div>
+    `).join('');
+}
+
+loadNotifications();
+</script>
+
+</body>
+</html>
