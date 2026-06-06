@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard — VendorBridge</title>
+  <link rel="stylesheet" href="../css/app.css">
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar"></aside>
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-left">
+        <div>
+          <div class="page-title" id="greeting">Dashboard</div>
+          <div class="page-subtitle" id="date-str"></div>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <button class="btn btn-primary btn-sm" onclick="navigate('rfqs')" id="new-rfq-btn" style="display:none;">
+          + New RFQ
+        </button>
+      </div>
+    </div>
+    <div class="page-content">
+      <!-- STATS -->
+      <div class="stats-grid" id="stats-grid">
+        <div class="stat-card"><div class="spinner"></div></div>
+        <div class="stat-card"><div class="spinner"></div></div>
+        <div class="stat-card"><div class="spinner"></div></div>
+        <div class="stat-card"><div class="spinner"></div></div>
+      </div>
+
+      <!-- QUICK ACTIONS -->
+      <div class="card mb-24" id="quick-actions-card" style="display:none;">
+        <div class="card-header"><div class="card-title">Quick Actions</div></div>
+        <div class="quick-actions" id="quick-actions"></div>
+      </div>
+
+      <!-- MAIN GRID -->
+      <div class="grid-21" style="margin-bottom:24px;">
+        <!-- Recent RFQs -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Recent RFQs</div>
+              <div class="card-subtitle">Active procurement requests</div>
+            </div>
+            <a href="rfqs.html" class="btn btn-secondary btn-sm">View All</a>
+          </div>
+          <div class="table-container">
+            <table id="rfq-table">
+              <thead><tr>
+                <th>RFQ</th><th>Category</th><th>Status</th><th>Deadline</th>
+              </tr></thead>
+              <tbody id="rfq-tbody">
+                <tr><td colspan="4" class="text-center text-muted">Loading...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Activity Feed -->
+        <div class="card">
+          <div class="card-header"><div class="card-title">Activity Feed</div></div>
+          <div class="timeline" id="activity-feed">
+            <div class="text-center text-muted" style="padding:20px;">Loading...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent POs -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Recent Purchase Orders</div>
+            <div class="card-subtitle">Latest procurement transactions</div>
+          </div>
+          <a href="purchase-orders.html" class="btn btn-secondary btn-sm">View All</a>
+        </div>
+        <div class="table-container">
+          <table>
+            <thead><tr>
+              <th>PO Number</th><th>Vendor</th><th>Amount</th><th>Status</th><th>Date</th>
+            </tr></thead>
+            <tbody id="po-tbody">
+              <tr><td colspan="5" class="text-center text-muted">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="../js/app.js"></script>
+<script>
+if (!auth.requireAuth()) throw '';
+render_sidebar('dashboard');
+
+const u = auth.user;
+const now = new Date();
+const hr = now.getHours();
+const greet = hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening';
+document.getElementById('greeting').textContent = `${greet}, ${u.name.split(' ')[0]}! 👋`;
+document.getElementById('date-str').textContent = now.toLocaleDateString('en-IN', {weekday:'long',day:'numeric',month:'long',year:'numeric'});
+
+if (auth.hasRole('procurement_officer','admin')) {
+  document.getElementById('new-rfq-btn').style.display = '';
+}
+
+async function loadDashboard() {
+  try {
+    const data = await api.get('/dashboard');
+
+    // Stats
+    document.getElementById('stats-grid').innerHTML = `
+      <div class="stat-card">
+        <div class="stat-icon">📝</div>
+        <div class="stat-label">Active RFQs</div>
+        <div class="stat-value green">${data.active_rfqs}</div>
+        <div class="stat-change">Open procurement requests</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">⏳</div>
+        <div class="stat-label">Pending Approvals</div>
+        <div class="stat-value orange">${data.pending_approvals}</div>
+        <div class="stat-change">Awaiting manager action</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">💰</div>
+        <div class="stat-label">Monthly Spend</div>
+        <div class="stat-value blue">${fmt_currency(data.monthly_spend)}</div>
+        <div class="stat-change">This month's procurement</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">🏢</div>
+        <div class="stat-label">Active Vendors</div>
+        <div class="stat-value">${data.active_vendors}</div>
+        <div class="stat-change">Registered suppliers</div>
+      </div>
+    `;
+
+    // Quick actions
+    if (auth.hasRole('procurement_officer','admin')) {
+      document.getElementById('quick-actions-card').style.display = '';
+      document.getElementById('quick-actions').innerHTML = `
+        <button class="quick-action-btn" onclick="navigate('rfqs')"><span class="qa-icon">📝</span>Create RFQ</button>
+        <button class="quick-action-btn" onclick="navigate('vendors')"><span class="qa-icon">🏢</span>Add Vendor</button>
+        <button class="quick-action-btn" onclick="navigate('quotations')"><span class="qa-icon">💬</span>Compare Quotes</button>
+        <button class="quick-action-btn" onclick="navigate('purchase-orders')"><span class="qa-icon">📦</span>Generate PO</button>
+        <button class="quick-action-btn" onclick="navigate('invoices')"><span class="qa-icon">🧾</span>View Invoices</button>
+        <button class="quick-action-btn" onclick="navigate('reports')"><span class="qa-icon">📊</span>View Reports</button>
+      `;
+    }
+
+    // RFQ table
+    if (data.recent_rfqs?.length) {
+      document.getElementById('rfq-tbody').innerHTML = data.recent_rfqs.map(r => `
+        <tr onclick="window.location='rfqs.html'" style="cursor:pointer;">
+          <td>
+            <div class="fw-600">${r.rfq_number}</div>
+            <div class="text-sm text-muted">${r.title}</div>
+          </td>
+          <td><span class="badge badge-gray">${r.category || 'General'}</span></td>
+          <td>${status_badge(r.status)}</td>
+          <td class="font-mono">${fmt_date(r.deadline)}</td>
+        </tr>
+      `).join('');
+    } else {
+      document.getElementById('rfq-tbody').innerHTML = '<tr><td colspan="4" class="text-center text-muted">No RFQs yet</td></tr>';
+    }
+
+    // Activity feed
+    if (data.recent_activity?.length) {
+      document.getElementById('activity-feed').innerHTML = `<div class="timeline">` +
+        data.recent_activity.map(a => `
+          <div class="timeline-item">
+            <div class="timeline-dot">${activity_icon(a.action)}</div>
+            <div class="timeline-content">
+              <div class="timeline-action">${a.action?.replace(/_/g,' ')}</div>
+              <div class="timeline-desc">${a.description || ''}</div>
+              <div class="timeline-time">${time_ago(a.created_at)}</div>
+            </div>
+          </div>
+        `).join('') + `</div>`;
+    }
+
+    // PO table
+    if (data.recent_pos?.length) {
+      document.getElementById('po-tbody').innerHTML = data.recent_pos.map(po => `
+        <tr style="cursor:pointer;" onclick="navigate('purchase-orders')">
+          <td class="font-mono fw-600">${po.po_number}</td>
+          <td>${po.company_name}</td>
+          <td class="fw-600">${fmt_currency(po.total_amount)}</td>
+          <td>${status_badge(po.status)}</td>
+          <td class="text-muted">${fmt_date(po.created_at)}</td>
+        </tr>
+      `).join('');
+    } else {
+      document.getElementById('po-tbody').innerHTML = '<tr><td colspan="5" class="text-center text-muted">No purchase orders yet</td></tr>';
+    }
+
+  } catch (ex) {
+    toast.error('Failed to load dashboard: ' + ex.message);
+  }
+}
+
+loadDashboard();
+</script>
+</body>
+</html>

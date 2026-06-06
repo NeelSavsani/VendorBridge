@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vendors — VendorBridge</title>
+  <link rel="stylesheet" href="../css/app.css">
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar"></aside>
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-left">
+        <div><div class="page-title">Vendors</div><div class="page-subtitle">Manage supplier profiles</div></div>
+      </div>
+      <div class="topbar-right">
+        <button class="btn btn-primary" id="add-vendor-btn" onclick="openAddModal()">+ Add Vendor</button>
+      </div>
+    </div>
+    <div class="page-content">
+      <div class="card">
+        <div class="filter-bar">
+          <div class="search-bar">
+            <span class="search-icon">🔍</span>
+            <input type="text" placeholder="Search vendors..." id="search-input" oninput="filterVendors()">
+          </div>
+          <select id="filter-category" onchange="filterVendors()" style="width:150px;">
+            <option value="">All Categories</option>
+            <option>IT Hardware</option><option>Furniture</option>
+            <option>Stationery</option><option>General</option>
+          </select>
+          <select id="filter-status" onchange="filterVendors()" style="width:130px;">
+            <option value="">All Status</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+            <option value="pending">Pending</option>
+          </select>
+        </div>
+        <div class="table-container">
+          <table>
+            <thead><tr>
+              <th>Company</th><th>Contact</th><th>Category</th><th>GST</th>
+              <th>Rating</th><th>Status</th><th>RFQs</th><th>Actions</th>
+            </tr></thead>
+            <tbody id="vendors-tbody">
+              <tr><td colspan="8" class="text-center"><div class="spinner"></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Vendor Modal -->
+<div class="modal-overlay hidden" id="add-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Add New Vendor</div>
+      <button class="btn btn-secondary btn-sm btn-icon" onclick="modal.close('add-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label>Company Name *</label><input id="v-company" placeholder="Acme Supplies Ltd"></div>
+        <div class="form-group"><label>Contact Person</label><input id="v-contact" placeholder="John Doe"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Email *</label><input id="v-email" type="email" placeholder="vendor@company.com"></div>
+        <div class="form-group"><label>Phone</label><input id="v-phone" placeholder="+91-XXXXXXXXXX"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>GST Number</label><input id="v-gst" placeholder="22AAAAA0000A1Z5"></div>
+        <div class="form-group"><label>Category</label>
+          <select id="v-category">
+            <option>IT Hardware</option><option>Furniture</option>
+            <option>Stationery</option><option>Logistics</option><option>General</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Country</label><input id="v-country" value="India"></div>
+        <div class="form-group"><label>Status</label>
+          <select id="v-status"><option value="active">Active</option><option value="pending">Pending</option></select>
+        </div>
+      </div>
+      <div class="form-group"><label>Address</label><textarea id="v-address" rows="2" placeholder="Full address..."></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="modal.close('add-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveVendor()" id="save-vendor-btn">Save Vendor</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="../js/app.js"></script>
+<script>
+if (!auth.requireAuth()) throw '';
+render_sidebar('vendors');
+
+let allVendors = [];
+
+async function loadVendors() {
+  try {
+    allVendors = await api.get('/vendors');
+    renderVendors(allVendors);
+  } catch(ex) {
+    toast.error(ex.message);
+    document.getElementById('vendors-tbody').innerHTML = `<tr><td colspan="8" class="text-center text-muted">Failed to load vendors</td></tr>`;
+  }
+}
+
+function renderVendors(vendors) {
+  if (!vendors.length) {
+    document.getElementById('vendors-tbody').innerHTML = `
+      <tr><td colspan="8"><div class="empty-state">
+        <div class="empty-icon">🏢</div>
+        <div class="empty-title">No vendors found</div>
+        <div class="empty-text">Add your first vendor to get started</div>
+        <button class="btn btn-primary" onclick="openAddModal()">+ Add Vendor</button>
+      </div></td></tr>`;
+    return;
+  }
+  document.getElementById('vendors-tbody').innerHTML = vendors.map(v => `
+    <tr>
+      <td>
+        <div class="fw-600">${v.company_name}</div>
+        <div class="text-sm text-muted">${v.email}</div>
+      </td>
+      <td>${v.contact_person || '—'}<br><span class="text-sm text-muted">${v.phone || ''}</span></td>
+      <td><span class="badge badge-blue">${v.category || 'General'}</span></td>
+      <td class="font-mono">${v.gst_number || '—'}</td>
+      <td>
+        <div class="flex-center gap-8">
+          ${renderStars(v.rating)}
+          <span class="text-sm">${v.rating || 0}</span>
+        </div>
+      </td>
+      <td>${status_badge(v.status)}</td>
+      <td>${v.rfq_count || 0}</td>
+      <td class="actions-col">
+        <button class="btn btn-secondary btn-sm" onclick="editVendor(${v.id})">Edit</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function renderStars(rating) {
+  const r = Math.round(rating || 0);
+  return Array.from({length:5}, (_,i) => `<span style="color:${i<r?'var(--warning)':'var(--border)'};font-size:12px;">★</span>`).join('');
+}
+
+function filterVendors() {
+  const q = document.getElementById('search-input').value.toLowerCase();
+  const cat = document.getElementById('filter-category').value;
+  const status = document.getElementById('filter-status').value;
+  renderVendors(allVendors.filter(v =>
+    (!q || v.company_name?.toLowerCase().includes(q) || v.email?.toLowerCase().includes(q)) &&
+    (!cat || v.category === cat) &&
+    (!status || v.status === status)
+  ));
+}
+
+function openAddModal() {
+  ['v-company','v-contact','v-email','v-phone','v-gst','v-address'].forEach(id => document.getElementById(id).value='');
+  modal.open('add-modal');
+}
+
+async function saveVendor() {
+  const btn = document.getElementById('save-vendor-btn');
+  btn.disabled=true; btn.innerHTML='<span class="spinner"></span>';
+  try {
+    await api.post('/vendors', {
+      company_name: document.getElementById('v-company').value,
+      contact_person: document.getElementById('v-contact').value,
+      email: document.getElementById('v-email').value,
+      phone: document.getElementById('v-phone').value,
+      gst_number: document.getElementById('v-gst').value,
+      category: document.getElementById('v-category').value,
+      country: document.getElementById('v-country').value,
+      status: document.getElementById('v-status').value,
+      address: document.getElementById('v-address').value,
+    });
+    toast.success('Vendor added successfully!');
+    modal.close('add-modal');
+    loadVendors();
+  } catch(ex) { toast.error(ex.message); }
+  finally { btn.disabled=false; btn.textContent='Save Vendor'; }
+}
+
+async function editVendor(id) {
+  try {
+    const v = await api.get(`/vendors/${id}`);
+    document.getElementById('v-company').value = v.company_name;
+    document.getElementById('v-contact').value = v.contact_person;
+    document.getElementById('v-email').value = v.email;
+    document.getElementById('v-phone').value = v.phone;
+    document.getElementById('v-gst').value = v.gst_number;
+    document.getElementById('v-category').value = v.category;
+    document.getElementById('v-country').value = v.country;
+    document.getElementById('v-status').value = v.status;
+    document.getElementById('v-address').value = v.address;
+    document.getElementById('save-vendor-btn').onclick = () => updateVendor(id);
+    modal.open('add-modal');
+  } catch(ex) { toast.error(ex.message); }
+}
+
+async function updateVendor(id) {
+  const btn = document.getElementById('save-vendor-btn');
+  btn.disabled=true;
+  try {
+    await api.put(`/vendors/${id}`, {
+      company_name: document.getElementById('v-company').value,
+      contact_person: document.getElementById('v-contact').value,
+      email: document.getElementById('v-email').value,
+      phone: document.getElementById('v-phone').value,
+      gst_number: document.getElementById('v-gst').value,
+      category: document.getElementById('v-category').value,
+      country: document.getElementById('v-country').value,
+      status: document.getElementById('v-status').value,
+      address: document.getElementById('v-address').value,
+    });
+    toast.success('Vendor updated!');
+    modal.close('add-modal');
+    loadVendors();
+  } catch(ex) { toast.error(ex.message); }
+  finally { btn.disabled=false; }
+}
+
+// Reset save button onclick when modal opens
+function openAddModal() {
+  ['v-company','v-contact','v-email','v-phone','v-gst','v-address'].forEach(id => document.getElementById(id).value='');
+  document.getElementById('save-vendor-btn').onclick = saveVendor;
+  modal.open('add-modal');
+}
+
+if (!auth.hasRole('admin','procurement_officer')) {
+  document.getElementById('add-vendor-btn').style.display = 'none';
+}
+
+loadVendors();
+</script>
+</body>
+</html>
