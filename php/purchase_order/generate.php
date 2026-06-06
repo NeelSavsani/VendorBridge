@@ -8,7 +8,11 @@ require_once __DIR__ . '/../config/auth.php';
 // Authentication
 // ========================================
 
-$auth = require_auth();
+$auth = require_auth([
+    'admin',
+    'procurement_officer',
+    'manager'
+]);
 
 // ========================================
 // Purchase Order ID
@@ -32,31 +36,19 @@ $db = getDB();
 
 $stmt = $db->prepare("
     SELECT
-        po.id,
-        po.po_number,
-        po.quotation_id,
-        po.rfq_id,
-        po.vendor_id,
-        po.subtotal,
-        po.tax_percent,
-        po.tax_amount,
-        po.total_amount,
-        po.delivery_date,
-        po.status,
-        po.created_at,
+        po.*,
 
         v.company_name,
         v.contact_person,
         v.email AS vendor_email,
-        v.phone AS vendor_phone,
+        v.phone,
         v.gst_number,
-        v.address AS vendor_address,
+        v.address,
 
         r.rfq_number,
         r.title AS rfq_title,
 
         q.quotation_number,
-        q.delivery_days,
         q.notes,
 
         u.name AS created_by_name
@@ -91,47 +83,12 @@ if (!$po) {
 }
 
 // ========================================
-// Vendor Access Restriction
-// ========================================
-
-if (
-    isset($auth['role']) &&
-    $auth['role'] === 'vendor'
-) {
-
-    $stmt = $db->prepare("
-        SELECT id
-        FROM vendors
-        WHERE user_id = ?
-        LIMIT 1
-    ");
-
-    $stmt->execute([
-        $auth['id']
-    ]);
-
-    $vendor = $stmt->fetch();
-
-    if (
-        !$vendor ||
-        $vendor['id'] != $po['vendor_id']
-    ) {
-
-        error_response(
-            'Access denied',
-            403
-        );
-    }
-}
-
-// ========================================
-// Purchase Order Items
+// Get PO Items
 // ========================================
 
 $stmt = $db->prepare("
     SELECT
         qi.id,
-        qi.rfq_item_id,
         qi.item_name,
         qi.quantity,
         qi.unit_price,
@@ -139,10 +96,7 @@ $stmt = $db->prepare("
 
     FROM quotation_items qi
 
-    INNER JOIN quotations q
-        ON q.id = qi.quotation_id
-
-    WHERE q.id = ?
+    WHERE qi.quotation_id = ?
 
     ORDER BY qi.id ASC
 ");
@@ -151,14 +105,49 @@ $stmt->execute([
     $po['quotation_id']
 ]);
 
-$po['items'] =
-    $stmt->fetchAll();
+$items = $stmt->fetchAll();
+
+// ========================================
+// Totals
+// ========================================
+
+$totalQuantity = 0;
+
+foreach ($items as $item) {
+
+    $totalQuantity +=
+        (float)$item['quantity'];
+}
+
+// ========================================
+// Activity Log
+// ========================================
+
+log_activity(
+    $auth['id'],
+    'PO_GENERATED',
+    'purchase_order',
+    $id,
+    'Purchase Order document generated: ' .
+    $po['po_number']
+);
 
 // ========================================
 // Response
 // ========================================
 
 success_response(
-    'Purchase Order retrieved successfully',
-    $po
+    'Purchase Order generated successfully',
+    [
+        'purchase_order' => $po,
+        'items' => $items,
+        'summary' => [
+            'total_items' => count($items),
+            'total_quantity' => $totalQuantity,
+            'subtotal' => $po['subtotal'],
+            'tax_percent' => $po['tax_percent'],
+            'tax_amount' => $po['tax_amount'],
+            'grand_total' => $po['total_amount']
+        ]
+    ]
 );

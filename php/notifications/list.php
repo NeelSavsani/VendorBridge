@@ -8,9 +8,7 @@ require_once __DIR__ . '/../config/auth.php';
 // Authentication
 // ========================================
 
-$auth = require_auth([
-    'admin'
-]);
+$auth = require_auth();
 
 $db = getDB();
 
@@ -22,59 +20,51 @@ $search = sanitize(
     $_GET['search'] ?? ''
 );
 
-$userId = (int)(
-    $_GET['user_id'] ?? 0
-);
+$isRead = $_GET['is_read'] ?? '';
 
-$entityType = sanitize(
-    $_GET['entity_type'] ?? ''
-);
-
-$pagination =
-    get_pagination();
+$pagination = get_pagination();
 
 $where = ['1=1'];
 $binds = [];
 
 // ========================================
-// Search
+// User Restriction
+// ========================================
+
+if ($auth['role'] !== 'admin') {
+
+    $where[] = "n.user_id = ?";
+    $binds[] = $auth['id'];
+}
+
+// ========================================
+// Search Filter
 // ========================================
 
 if ($search) {
 
     $where[] = "
         (
-            al.action LIKE ?
-            OR al.description LIKE ?
-            OR u.name LIKE ?
-            OR u.email LIKE ?
+            n.title LIKE ?
+            OR n.message LIKE ?
         )
     ";
 
     $binds[] = "%{$search}%";
     $binds[] = "%{$search}%";
-    $binds[] = "%{$search}%";
-    $binds[] = "%{$search}%";
 }
 
 // ========================================
-// User Filter
+// Read Filter
 // ========================================
 
-if ($userId > 0) {
+if (
+    $isRead !== '' &&
+    in_array($isRead, ['0', '1'])
+) {
 
-    $where[] = "al.user_id = ?";
-    $binds[] = $userId;
-}
-
-// ========================================
-// Entity Filter
-// ========================================
-
-if ($entityType) {
-
-    $where[] = "al.entity_type = ?";
-    $binds[] = $entityType;
+    $where[] = "n.is_read = ?";
+    $binds[] = $isRead;
 }
 
 // ========================================
@@ -83,27 +73,24 @@ if ($entityType) {
 
 $sql = "
     SELECT
-        al.id,
-        al.user_id,
-        al.action,
-        al.entity_type,
-        al.entity_id,
-        al.description,
-        al.ip_address,
-        al.created_at,
+        n.id,
+        n.user_id,
+        n.title,
+        n.message,
+        n.is_read,
+        n.created_at,
 
-        u.name,
-        u.email,
-        u.role
+        u.name AS user_name,
+        u.email AS user_email
 
-    FROM activity_logs al
+    FROM notifications n
 
-    LEFT JOIN users u
-        ON u.id = al.user_id
+    INNER JOIN users u
+        ON u.id = n.user_id
 
     WHERE " . implode(' AND ', $where) . "
 
-    ORDER BY al.created_at DESC
+    ORDER BY n.created_at DESC
 
     LIMIT ?
     OFFSET ?
@@ -116,39 +103,35 @@ $stmt = $db->prepare($sql);
 
 $stmt->execute($binds);
 
-$logs = $stmt->fetchAll();
+$notifications = $stmt->fetchAll();
 
 // ========================================
 // Summary
 // ========================================
 
 $summary = [
-    'total_records' => count($logs)
+    'total_records' => count($notifications),
+    'read' => 0,
+    'unread' => 0
 ];
 
-$actions = [];
+foreach ($notifications as $notification) {
 
-foreach ($logs as $log) {
-
-    $action = $log['action'];
-
-    if (!isset($actions[$action])) {
-        $actions[$action] = 0;
+    if ($notification['is_read']) {
+        $summary['read']++;
+    } else {
+        $summary['unread']++;
     }
-
-    $actions[$action]++;
 }
-
-$summary['actions'] = $actions;
 
 // ========================================
 // Response
 // ========================================
 
 success_response(
-    'Activity logs retrieved successfully',
+    'Notifications retrieved successfully',
     [
-        'logs' => $logs,
+        'notifications' => $notifications,
         'summary' => $summary,
         'page' => $pagination['page'],
         'limit' => $pagination['limit']

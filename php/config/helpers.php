@@ -152,6 +152,19 @@ function generate_invoice_number()
         );
 }
 
+function generate_quotation_number()
+{
+    return 'QT-' .
+        date('Y') .
+        '-' .
+        strtoupper(
+            substr(
+                uniqid(),
+                -6
+            )
+        );
+}
+
 // ========================================
 // Pagination
 // ========================================
