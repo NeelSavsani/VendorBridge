@@ -107,6 +107,24 @@ $routes = [
     'GET /api/quotations/compare/{rfq_id}'
     => 'quotation/compare',
 
+
+    // USERS
+
+    'GET /api/users'
+    => 'user/list',
+
+    'POST /api/users'
+    => 'user/create',
+
+    'GET /api/users/{id}'
+    => 'user/get',
+
+    'PUT /api/users/{id}'
+    => 'user/update',
+
+    'DELETE /api/users/{id}'
+    => 'user/delete',
+
     // APPROVAL
 
     'POST /api/approvals'

@@ -101,11 +101,33 @@ let allUsers = [];
 
 async function loadUsers() {
   try {
-    allUsers = await api.get('/users');
+
+    const response = await api.get('/users');
+
+    console.log('Users API Response:', response);
+
+    allUsers =
+      response.users ||
+      response.data?.users ||
+      response.data ||
+      response ||
+      [];
+
     renderUsers(allUsers);
-  } catch(ex) {
-    toast.error(ex.message);
-    document.getElementById('users-tbody').innerHTML = `<tr><td colspan="7" class="text-center text-muted">Failed to load users</td></tr>`;
+
+  } catch (ex) {
+
+    console.error('Load Users Error:', ex);
+
+    toast.error(ex.message || 'Failed to load users');
+
+    document.getElementById('users-tbody').innerHTML = `
+      <tr>
+        <td colspan="7" class="text-center text-muted">
+          Failed to load users
+        </td>
+      </tr>
+    `;
   }
 }
 
