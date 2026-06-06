@@ -154,11 +154,47 @@ if (auth.hasRole('vendor')) {
 
 async function loadRFQs() {
   try {
-    allRFQs = await api.get('/rfqs');
+
+    const response = await api.get('/rfqs');
+
+    console.log('RFQ API Response:', response);
+
+    if (Array.isArray(response)) {
+      allRFQs = response;
+    }
+    else if (response.data && Array.isArray(response.data)) {
+      allRFQs = response.data;
+    }
+    else if (
+      response.data &&
+      response.data.rfqs &&
+      Array.isArray(response.data.rfqs)
+    ) {
+      allRFQs = response.data.rfqs;
+    }
+    else if (
+      response.rfqs &&
+      Array.isArray(response.rfqs)
+    ) {
+      allRFQs = response.rfqs;
+    }
+    else {
+      allRFQs = [];
+      console.error('Unexpected RFQ response:', response);
+    }
+
     renderRFQs(allRFQs);
-  } catch(ex) {
+
+  } catch (ex) {
+
+    console.error(ex);
+
     toast.error(ex.message);
-    document.getElementById('rfq-tbody').innerHTML = `<tr><td colspan="8" class="text-center text-muted">Failed to load RFQs</td></tr>`;
+
+    document.getElementById('rfq-tbody').innerHTML =
+      `<tr><td colspan="8" class="text-center text-muted">
+        Failed to load RFQs
+      </td></tr>`;
   }
 }
 
