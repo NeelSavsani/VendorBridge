@@ -5,16 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Login — VendorBridge</title>
   <link rel="stylesheet" href="../assets/css/app.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </head>
 <body>
 <div class="auth-page">
   <div class="auth-box">
     <div class="auth-logo">
-      <div class="logo-icon">V</div>
-      <div class="logo-text">Vendor<span>Bridge</span></div>
+<div class="logo-icon">
+  <img src="../assets/images/Logo.png" alt="VendorBridge Logo">
+</div>      <div class="logo-text">Vendor<span>Bridge</span></div>
     </div>
     <h1 class="auth-title">Welcome back</h1>
-    <p class="auth-subtitle">Sign in to your procurement dashboard</p>
+    <p class="auth-subtitle">Login to your procurement dashboard</p>
 
     <div id="error-msg" class="alert alert-error hidden"></div>
 
@@ -24,11 +26,16 @@
         <input type="email" id="email" placeholder="you@company.com" required autocomplete="email">
       </div>
       <div class="form-group">
-        <label>Password</label>
-        <input type="password" id="password" placeholder="••••••••" required>
-      </div>
+  <label>Password</label>
+  <div class="password-wrapper">
+    <input type="password" id="password" placeholder="••••••••" required>
+<span class="password-toggle" onclick="togglePassword('password', this)">
+  <i class="fa-regular fa-eye"></i>
+</span>
+  </div>
+</div>
       <button type="submit" class="btn btn-primary btn-block btn-lg" id="login-btn">
-        Sign In
+        Login
       </button>
     </form>
 
@@ -92,6 +99,22 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
     btn.textContent = 'Sign In';
   }
 });
+
+function togglePassword(id, el) {
+  const input = document.getElementById(id);
+  const icon = el.querySelector('i');
+
+  if (input.type === 'password') {
+    input.type = 'text';
+    icon.classList.remove('fa-eye');
+    icon.classList.add('fa-eye-slash');
+  } else {
+    input.type = 'password';
+    icon.classList.remove('fa-eye-slash');
+    icon.classList.add('fa-eye');
+  }
+}
+
 </script>
 </body>
 </html>
