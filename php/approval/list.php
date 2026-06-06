@@ -84,7 +84,6 @@ $sql = "
         a.approver_id,
         a.status,
         a.created_at,
-        a.approved_at,
         a.remarks,
 
         q.quotation_number,
@@ -123,7 +122,6 @@ $binds[] = $pagination['limit'];
 $binds[] = $pagination['offset'];
 
 $stmt = $db->prepare($sql);
-
 $stmt->execute($binds);
 
 $approvals = $stmt->fetchAll();

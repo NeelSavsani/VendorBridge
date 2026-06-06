@@ -109,13 +109,66 @@ let currentActionId = null;
 
 async function loadApprovals() {
   try {
-    allApprovals = await api.get('/approvals');
+
+    const response = await api.get('/approvals');
+
+    console.log('Approval API Response:', response);
+
+    if (Array.isArray(response)) {
+      allApprovals = response;
+    }
+    else if (
+      response.data &&
+      Array.isArray(response.data)
+    ) {
+      allApprovals = response.data;
+    }
+    else if (
+      response.data &&
+      response.data.approvals &&
+      Array.isArray(response.data.approvals)
+    ) {
+      allApprovals = response.data.approvals;
+    }
+    else if (
+      response.approvals &&
+      Array.isArray(response.approvals)
+    ) {
+      allApprovals = response.approvals;
+    }
+    else {
+      allApprovals = [];
+      console.error(
+        'Unexpected approval response:',
+        response
+      );
+    }
+
     renderApprovals(allApprovals);
     renderPending();
-  } catch(ex) {
+
+  } catch (ex) {
+
+    console.error(
+      'Load Approvals Error:',
+      ex
+    );
+
     toast.error(ex.message);
-    document.getElementById('approvals-tbody').innerHTML = `<tr><td colspan="8" class="text-center text-muted">Failed to load approvals</td></tr>`;
-    document.getElementById('pending-list').innerHTML = `<div class="text-center text-muted">Failed to load</div>`;
+
+    document.getElementById('approvals-tbody').innerHTML = `
+      <tr>
+        <td colspan="8" class="text-center text-muted">
+          Failed to load approvals
+        </td>
+      </tr>
+    `;
+
+    document.getElementById('pending-list').innerHTML = `
+      <div class="text-center text-muted">
+        Failed to load
+      </div>
+    `;
   }
 }
 
