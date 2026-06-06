@@ -72,75 +72,114 @@
 </div>
 
 <script src="../js/app.js"></script>
+
 <script>
 // Redirect if already logged in
-if (auth.isLoggedIn()) navigate('dashboard');
-
-function fill(email, password) {
-  document.getElementById('email').value = email;
-  document.getElementById('password').value = password;
-  document.querySelectorAll('.demo-cred').forEach(el => el.style.background = '');
-  event.currentTarget.style.background = 'var(--accent-dim)';
+if (typeof auth !== 'undefined' && auth.isLoggedIn()) {
+  navigate('dashboard');
 }
 
+/* ==========================
+   DEMO CREDENTIALS
+========================== */
+function fill(email, password, el) {
+  document.getElementById('email').value = email;
+  document.getElementById('password').value = password;
+
+  document.querySelectorAll('.demo-cred').forEach(item => {
+    item.style.background = '';
+  });
+
+  if (el) {
+    el.style.background = 'var(--accent-dim)';
+  }
+}
+
+/* ==========================
+   LOGIN
+========================== */
 document.getElementById('login-form').addEventListener('submit', async (e) => {
   e.preventDefault();
+
   const btn = document.getElementById('login-btn');
   const err = document.getElementById('error-msg');
+
   err.classList.add('hidden');
+
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span> Signing in...';
 
   try {
     const res = await api.post('/auth/login', {
       email: document.getElementById('email').value,
-      password: document.getElementById('password').value,
+      password: document.getElementById('password').value
     });
+
     auth.login(res.token, res.user);
     navigate('dashboard');
+
   } catch (ex) {
     err.textContent = ex.message || 'Login failed';
     err.classList.remove('hidden');
+
     btn.disabled = false;
-    btn.textContent = 'Sign In';
+    btn.textContent = 'Login';
   }
 });
 
+/* ==========================
+   PASSWORD TOGGLE
+========================== */
 function togglePassword(id, el) {
   const input = document.getElementById(id);
   const icon = el.querySelector('i');
 
   if (input.type === 'password') {
     input.type = 'text';
-    icon.classList.remove('fa-eye');
-    icon.classList.add('fa-eye-slash');
+    icon.classList.replace('fa-eye', 'fa-eye-slash');
   } else {
     input.type = 'password';
-    icon.classList.remove('fa-eye-slash');
-    icon.classList.add('fa-eye');
+    icon.classList.replace('fa-eye-slash', 'fa-eye');
   }
 }
 
-
+/* ==========================
+   THEME TOGGLE
+========================== */
 const themeToggle = document.getElementById('theme-toggle');
 
-if (localStorage.getItem('theme') === 'light') {
-  document.body.classList.add('light-theme');
-  themeToggle.innerHTML = '<i class="fa-solid fa-moon"></i>';
+function updateThemeIcon() {
+  const isLight = document.body.classList.contains('light-theme');
+
+  themeToggle.innerHTML = isLight
+    ? '<i class="fa-solid fa-sun"></i>'
+    : '<i class="fa-solid fa-moon"></i>';
 }
 
+// Load saved theme
+const savedTheme = localStorage.getItem('theme');
+
+if (savedTheme === 'light') {
+  document.body.classList.add('light-theme');
+}
+
+updateThemeIcon();
+
+// Toggle Theme
 themeToggle.addEventListener('click', () => {
   document.body.classList.toggle('light-theme');
 
   const isLight = document.body.classList.contains('light-theme');
 
-  localStorage.setItem('theme', isLight ? 'light' : 'dark');
+  localStorage.setItem(
+    'theme',
+    isLight ? 'light' : 'dark'
+  );
 
-  themeToggle.innerHTML = isLight
-    ? '<i class="fa-solid fa-moon"></i>'
-    : '<i class="fa-solid fa-sun"></i>';
+  updateThemeIcon();
 });
 
+console.log('VendorBridge Login Loaded');
 </script>
 </body>
 </html>

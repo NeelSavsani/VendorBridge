@@ -97,67 +97,9 @@
 </div>
 <script src="../js/app.js"></script>
 <script>
-if (auth.isLoggedIn()) navigate('dashboard');
-
-document.getElementById('role').addEventListener('change', function() {
-  document.getElementById('vendor-extra').style.display = this.value === 'vendor' ? 'block' : 'none';
-});
-
-document.getElementById('reg-form').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const err = document.getElementById('error-msg');
-  const suc = document.getElementById('success-msg');
-  err.classList.add('hidden');
-
-  const pw = document.getElementById('password').value;
-  if (pw !== document.getElementById('confirm_password').value) {
-    err.textContent = 'Passwords do not match';
-    err.classList.remove('hidden');
-    return;
-  }
-
-  const btn = document.getElementById('reg-btn');
-  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Creating account...';
-  try {
-    await api.post('/auth/register', {
-      name: document.getElementById('name').value,
-      email: document.getElementById('email').value,
-      password: pw,
-      role: document.getElementById('role').value,
-      company: document.getElementById('company').value,
-      phone: document.getElementById('phone').value,
-      country: document.getElementById('country').value,
-      gst_number: document.getElementById('gst_number').value,
-    });
-    suc.textContent = 'Account created successfully! Redirecting to login...';
-    suc.classList.remove('hidden');
-    setTimeout(() => window.location.href = 'login.html', 2000);
-  } catch (ex) {
-    err.textContent = ex.message;
-    err.classList.remove('hidden');
-    btn.disabled = false; btn.textContent = 'Create Account';
-  }
-});
-function togglePassword(id, el) {
-  const input = document.getElementById(id);
-  const icon = el.querySelector('i');
-
-  if (input.type === 'password') {
-    input.type = 'text';
-    icon.classList.remove('fa-eye');
-    icon.classList.add('fa-eye-slash');
-  } else {
-    input.type = 'password';
-    icon.classList.remove('fa-eye-slash');
-    icon.classList.add('fa-eye');
-  }
-}
-
 const themeToggle = document.getElementById('theme-toggle');
 
-const themeToggle = document.getElementById('theme-toggle');
-
-function updateTheme() {
+function updateThemeIcon() {
   const isLight = document.body.classList.contains('light-theme');
 
   themeToggle.innerHTML = isLight
@@ -165,35 +107,25 @@ function updateTheme() {
     : '<i class="fa-solid fa-moon"></i>';
 }
 
+// Load saved theme
 if (localStorage.getItem('theme') === 'light') {
   document.body.classList.add('light-theme');
 }
 
-updateTheme();
+updateThemeIcon();
 
-themeToggle.addEventListener('click', () => {
-  document.body.classList.toggle('light-theme');
-
-  localStorage.setItem(
-    'theme',
-    document.body.classList.contains('light-theme')
-      ? 'light'
-      : 'dark'
-  );
-
-  updateTheme();
-});
-
+// Toggle theme
 themeToggle.addEventListener('click', () => {
   document.body.classList.toggle('light-theme');
 
   const isLight = document.body.classList.contains('light-theme');
 
-  localStorage.setItem('theme', isLight ? 'light' : 'dark');
+  localStorage.setItem(
+    'theme',
+    isLight ? 'light' : 'dark'
+  );
 
-  themeToggle.innerHTML = isLight
-    ? '<i class="fa-solid fa-moon"></i>'
-    : '<i class="fa-solid fa-sun"></i>';
+  updateThemeIcon();
 });
 
 </script>
