@@ -1,37 +1,297 @@
 <?php
-$auth = require_auth(['procurement_officer', 'admin']);
-$body = json_decode(file_get_contents('php://input'), true);
 
-if (empty($body['quotation_id'])) json_response(['error' => 'quotation_id required'], 400);
+require_once '../config/config.php';
+require_once '../config/helpers.php';
+require_once '../config/auth.php';
+
+// ========================================
+// Authentication
+// ========================================
+
+$auth = require_auth([
+    'procurement_officer',
+    'admin'
+]);
+
+// ========================================
+// Input
+// ========================================
+
+$body = get_json_input();
+
+require_fields(
+    $body,
+    [
+        'quotation_id'
+    ]
+);
+
+$quotationId = (int)$body['quotation_id'];
+
+if ($quotationId <= 0) {
+
+    error_response(
+        'Invalid quotation ID',
+        400
+    );
+}
 
 $db = getDB();
-$stmt = $db->prepare("SELECT q.*, v.id as vid FROM quotations q JOIN vendors v ON v.id=q.vendor_id WHERE q.id=? AND q.status='selected'");
-$stmt->execute([$body['quotation_id']]);
-$q = $stmt->fetch();
-if (!$q) json_response(['error' => 'Quotation not found or not approved'], 404);
 
-// Check PO doesn't exist already
-$stmt = $db->prepare("SELECT id FROM purchase_orders WHERE quotation_id=?");
-$stmt->execute([$body['quotation_id']]);
-if ($stmt->fetch()) json_response(['error' => 'PO already exists for this quotation'], 409);
+try {
 
-$year = date('Y');
-$stmt = $db->query("SELECT COUNT(*) as c FROM purchase_orders WHERE YEAR(created_at)=$year");
-$count = $stmt->fetch()['c'] + 1;
-$po_number = "PO-$year-" . str_pad($count, 3, '0', STR_PAD_LEFT);
+    $db->beginTransaction();
 
-$subtotal = $q['total_amount'];
-$tax_pct = $body['tax_percent'] ?? 18.00;
-$tax_amt = round($subtotal * $tax_pct / 100, 2);
-$total = $subtotal + $tax_amt;
+    // ========================================
+    // Get Approved Quotation
+    // ========================================
 
-$delivery_days = $q['delivery_days'] ?? 14;
-$delivery_date = date('Y-m-d', strtotime("+$delivery_days days"));
+    $stmt = $db->prepare("
+        SELECT
+            q.*,
+            v.company_name,
+            r.rfq_number
+        FROM quotations q
 
-$stmt = $db->prepare("INSERT INTO purchase_orders (po_number, quotation_id, rfq_id, vendor_id, subtotal, tax_percent, tax_amount, total_amount, delivery_date, status, created_by)
-    VALUES (?,?,?,?,?,?,?,?,?,'pending',?)");
-$stmt->execute([$po_number, $body['quotation_id'], $q['rfq_id'], $q['vendor_id'], $subtotal, $tax_pct, $tax_amt, $total, $delivery_date, $auth['id']]);
-$po_id = $db->lastInsertId();
+        INNER JOIN vendors v
+            ON v.id = q.vendor_id
 
-log_activity($auth['id'], 'PO_GENERATED', 'purchase_order', $po_id, "PO $po_number generated from quotation #{$body['quotation_id']}");
-json_response(['id' => $po_id, 'po_number' => $po_number, 'total_amount' => $total, 'message' => 'Purchase Order created'], 201);
+        INNER JOIN rfqs r
+            ON r.id = q.rfq_id
+
+        WHERE q.id = ?
+        AND q.status = 'approved'
+    ");
+
+    $stmt->execute([
+        $quotationId
+    ]);
+
+    $quotation = $stmt->fetch();
+
+    if (!$quotation) {
+
+        throw new Exception(
+            'Approved quotation not found'
+        );
+    }
+
+    // ========================================
+    // Existing PO Check
+    // ========================================
+
+    $stmt = $db->prepare("
+        SELECT id
+        FROM purchase_orders
+        WHERE quotation_id = ?
+    ");
+
+    $stmt->execute([
+        $quotationId
+    ]);
+
+    if ($stmt->fetch()) {
+
+        throw new Exception(
+            'Purchase Order already exists'
+        );
+    }
+
+    // ========================================
+    // Generate PO Number
+    // ========================================
+
+    $poNumber =
+        'PO-' .
+        date('Y') .
+        '-' .
+        strtoupper(
+            substr(
+                uniqid(),
+                -6
+            )
+        );
+
+    // ========================================
+    // Amount Calculation
+    // ========================================
+
+    $subtotal =
+        (float)$quotation['total_amount'];
+
+    $taxPercent =
+        (float)($body['tax_percent'] ?? 18);
+
+    $taxAmount =
+        round(
+            ($subtotal * $taxPercent) / 100,
+            2
+        );
+
+    $grandTotal =
+        round(
+            $subtotal + $taxAmount,
+            2
+        );
+
+    // ========================================
+    // Delivery Date
+    // ========================================
+
+    $deliveryDays =
+        (int)($quotation['delivery_days'] ?? 14);
+
+    $deliveryDate =
+        date(
+            'Y-m-d',
+            strtotime(
+                "+{$deliveryDays} days"
+            )
+        );
+
+    // ========================================
+    // Create PO
+    // ========================================
+
+    $stmt = $db->prepare("
+        INSERT INTO purchase_orders
+        (
+            po_number,
+            quotation_id,
+            rfq_id,
+            vendor_id,
+            subtotal,
+            tax_percent,
+            tax_amount,
+            total_amount,
+            delivery_date,
+            status,
+            created_by
+        )
+        VALUES
+        (
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?
+        )
+    ");
+
+    $stmt->execute([
+        $poNumber,
+        $quotationId,
+        $quotation['rfq_id'],
+        $quotation['vendor_id'],
+        $subtotal,
+        $taxPercent,
+        $taxAmount,
+        $grandTotal,
+        $deliveryDate,
+        $auth['id']
+    ]);
+
+    $poId =
+        $db->lastInsertId();
+
+    // ========================================
+    // Update Quotation
+    // ========================================
+
+    $stmt = $db->prepare("
+        UPDATE quotations
+        SET status = 'selected'
+        WHERE id = ?
+    ");
+
+    $stmt->execute([
+        $quotationId
+    ]);
+
+    // ========================================
+    // Update RFQ
+    // ========================================
+
+    $stmt = $db->prepare("
+        UPDATE rfqs
+        SET status = 'awarded'
+        WHERE id = ?
+    ");
+
+    $stmt->execute([
+        $quotation['rfq_id']
+    ]);
+
+    // ========================================
+    // Notify Vendor
+    // ========================================
+
+    $stmt = $db->prepare("
+        SELECT user_id
+        FROM vendors
+        WHERE id = ?
+    ");
+
+    $stmt->execute([
+        $quotation['vendor_id']
+    ]);
+
+    $vendor = $stmt->fetch();
+
+    if (
+        $vendor &&
+        !empty($vendor['user_id'])
+    ) {
+
+        create_notification(
+            $vendor['user_id'],
+            'Purchase Order Created',
+            'Purchase Order ' .
+            $poNumber .
+            ' has been issued.'
+        );
+    }
+
+    // ========================================
+    // Commit
+    // ========================================
+
+    $db->commit();
+
+    // ========================================
+    // Activity Log
+    // ========================================
+
+    log_activity(
+        $auth['id'],
+        'PO_CREATED',
+        'purchase_order',
+        $poId,
+        'Purchase Order ' .
+        $poNumber .
+        ' created from quotation ' .
+        $quotation['quotation_number']
+    );
+
+    // ========================================
+    // Response
+    // ========================================
+
+    success_response(
+        'Purchase Order created successfully',
+        [
+            'po_id' => $poId,
+            'po_number' => $poNumber,
+            'quotation_id' => $quotationId,
+            'total_amount' => $grandTotal,
+            'delivery_date' => $deliveryDate
+        ]
+    );
+
+} catch (Exception $e) {
+
+    if ($db->inTransaction()) {
+        $db->rollBack();
+    }
+
+    error_response(
+        $e->getMessage(),
+        400
+    );
+}
