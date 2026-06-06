@@ -169,11 +169,59 @@ if (auth.hasRole('vendor')) {
 
 async function loadQuotations() {
   try {
-    allQuotes = await api.get('/quotations');
+
+    const response = await api.get('/quotations');
+
+    console.log('Quotation API Response:', response);
+
+    if (Array.isArray(response)) {
+      allQuotes = response;
+    }
+    else if (
+      response.data &&
+      Array.isArray(response.data)
+    ) {
+      allQuotes = response.data;
+    }
+    else if (
+      response.data &&
+      response.data.quotations &&
+      Array.isArray(response.data.quotations)
+    ) {
+      allQuotes = response.data.quotations;
+    }
+    else if (
+      response.quotations &&
+      Array.isArray(response.quotations)
+    ) {
+      allQuotes = response.quotations;
+    }
+    else {
+      allQuotes = [];
+      console.error(
+        'Unexpected quotation response:',
+        response
+      );
+    }
+
     renderQuotes(allQuotes);
-  } catch(ex) {
+
+  } catch (ex) {
+
+    console.error(
+      'Load Quotations Error:',
+      ex
+    );
+
     toast.error(ex.message);
-    document.getElementById('quotes-tbody').innerHTML = `<tr><td colspan="9" class="text-center text-muted">Failed to load</td></tr>`;
+
+    document.getElementById('quotes-tbody').innerHTML = `
+      <tr>
+        <td colspan="9" class="text-center text-muted">
+          Failed to load quotations
+        </td>
+      </tr>
+    `;
   }
 }
 
