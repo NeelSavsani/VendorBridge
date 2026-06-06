@@ -98,13 +98,54 @@ let allLogs = [];
 let currentFilter = '';
 
 async function loadLogs() {
-  const limit = document.getElementById('limit-select').value;
+
+  const limit =
+    document.getElementById('limit-select').value;
+
   try {
-    allLogs = await api.get(`/activity-logs?limit=${limit}`);
+
+    const response =
+      await api.get(
+        `/activity-logs?limit=${limit}`
+      );
+
+    console.log(
+      'Activity Logs Response:',
+      response
+    );
+
+    allLogs =
+      response.logs ||
+      response.data?.logs ||
+      response.data ||
+      response ||
+      [];
+
     filterLogs();
-  } catch(ex) {
-    toast.error(ex.message);
-    document.getElementById('logs-container').innerHTML = `<div class="text-center text-muted" style="padding:40px;">Failed to load activity logs</div>`;
+
+  }
+  catch (ex) {
+
+    console.error(
+      'Load Logs Error:',
+      ex
+    );
+
+    toast.error(
+      ex.message ||
+      'Failed to load activity logs'
+    );
+
+    document.getElementById(
+      'logs-container'
+    ).innerHTML = `
+      <div
+        class="text-center text-muted"
+        style="padding:40px;"
+      >
+        Failed to load activity logs
+      </div>
+    `;
   }
 }
 

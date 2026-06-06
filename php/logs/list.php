@@ -37,7 +37,7 @@ $where = ['1=1'];
 $binds = [];
 
 // ========================================
-// Search
+// Search Filter
 // ========================================
 
 if ($search) {
@@ -109,14 +109,14 @@ $sql = "
     OFFSET ?
 ";
 
-$binds[] = $pagination['limit'];
-$binds[] = $pagination['offset'];
+$binds[] = (int)$pagination['limit'];
+$binds[] = (int)$pagination['offset'];
 
 $stmt = $db->prepare($sql);
 
 $stmt->execute($binds);
 
-$logs = $stmt->fetchAll();
+$logs = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // ========================================
 // Summary
@@ -130,16 +130,19 @@ $actions = [];
 
 foreach ($logs as $log) {
 
-    $action = $log['action'];
+    $action =
+        $log['action'] ?? 'UNKNOWN';
 
     if (!isset($actions[$action])) {
+
         $actions[$action] = 0;
     }
 
     $actions[$action]++;
 }
 
-$summary['actions'] = $actions;
+$summary['actions'] =
+    $actions;
 
 // ========================================
 // Response

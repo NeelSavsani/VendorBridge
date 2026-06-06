@@ -163,15 +163,15 @@ $routes = [
     'PUT /api/notifications/{id}/read'
     => 'notifications/mark_read',
 
-    // LOGS
+    // ACTIVITY LOGS
 
-    'GET /api/logs'
+    'GET /api/activity-logs'
     => 'logs/list',
 
-    'GET /api/logs/stats'
+    'GET /api/activity-logs/stats'
     => 'logs/stats',
 
-    'GET /api/logs/analytics'
+    'GET /api/activity-logs/analytics'
     => 'logs/analytics',
 
     // REPORTS
