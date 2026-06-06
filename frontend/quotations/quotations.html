@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quotations — VendorBridge</title>
+  <link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar"></aside>
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-left">
+        <div><div class="page-title">Quotations</div><div class="page-subtitle">Submit & compare vendor quotes</div></div>
+      </div>
+      <div class="topbar-right">
+        <button class="btn btn-primary" id="submit-quote-btn" onclick="openSubmitModal()" style="display:none;">+ Submit Quotation</button>
+      </div>
+    </div>
+    <div class="page-content">
+
+      <!-- Compare Banner (shown when RFQ selected) -->
+      <div id="compare-banner" style="display:none;" class="card mb-24" style="border-color:var(--accent);">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <div>
+            <div class="fw-600">Quotation Comparison</div>
+            <div class="text-sm text-muted" id="compare-rfq-info">Select an RFQ to compare quotations</div>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <select id="compare-rfq-select" onchange="loadComparison()" style="width:250px;">
+              <option value="">Select RFQ to compare...</option>
+            </select>
+            <button class="btn btn-secondary btn-sm" onclick="hideCompare()">✕</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Comparison Table -->
+      <div id="comparison-section" style="display:none;margin-bottom:24px;">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Side-by-Side Comparison</div>
+            <div style="display:flex;gap:8px;" id="compare-actions"></div>
+          </div>
+          <div class="table-container" id="comparison-table-wrap"></div>
+        </div>
+      </div>
+
+      <!-- All Quotations -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">All Quotations</div>
+          <button class="btn btn-secondary btn-sm" onclick="showCompare()">⚖️ Compare Mode</button>
+        </div>
+        <div class="filter-bar">
+          <div class="search-bar">
+            <span class="search-icon">🔍</span>
+            <input type="text" placeholder="Search quotations..." id="search-input" oninput="filterQuotes()">
+          </div>
+          <select id="filter-status" onchange="filterQuotes()" style="width:150px;">
+            <option value="">All Status</option>
+            <option value="submitted">Submitted</option>
+            <option value="under_review">Under Review</option>
+            <option value="selected">Selected</option>
+            <option value="rejected">Rejected</option>
+          </select>
+        </div>
+        <div class="table-container">
+          <table>
+            <thead><tr>
+              <th>Quote No.</th><th>RFQ</th><th>Vendor</th><th>Subtotal</th>
+              <th>Tax</th><th>Total</th><th>Delivery</th><th>Status</th><th>Actions</th>
+            </tr></thead>
+            <tbody id="quotes-tbody">
+              <tr><td colspan="9" class="text-center"><div class="spinner"></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Submit Quotation Modal -->
+<div class="modal-overlay hidden" id="submit-modal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div class="modal-title">Submit Quotation</div>
+      <button class="btn btn-secondary btn-sm btn-icon" onclick="modal.close('submit-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group" style="flex:2;">
+          <label>Select RFQ *</label>
+          <select id="q-rfq-id" onchange="loadRFQItems()">
+            <option value="">Select an open RFQ...</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Delivery Days *</label>
+          <input id="q-delivery" type="number" placeholder="15">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Notes / Comments</label>
+        <textarea id="q-notes" rows="2" placeholder="Any special terms, warranty info, etc..."></textarea>
+      </div>
+      <div>
+        <div class="fw-600 mb-12">Item Pricing</div>
+        <div class="table-container">
+          <table>
+            <thead><tr><th>Item</th><th>Qty</th><th>Unit Price (₹)</th><th>Total (₹)</th></tr></thead>
+            <tbody id="price-items-tbody">
+              <tr><td colspan="4" class="text-center text-muted">Select an RFQ first</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div style="margin-top:16px;display:flex;justify-content:flex-end;">
+          <div style="background:var(--bg-secondary);padding:16px;border-radius:8px;min-width:220px;">
+            <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+              <span class="text-muted">Subtotal</span>
+              <span id="q-subtotal" class="fw-600">₹0.00</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+              <span class="text-muted">GST %</span>
+              <input id="q-tax-pct" type="number" value="18" style="width:70px;text-align:right;" oninput="recalcTotal()">
+            </div>
+            <div style="display:flex;justify-content:space-between;padding-top:8px;border-top:1px solid var(--border);">
+              <span class="fw-600">Grand Total</span>
+              <span id="q-total" class="fw-600" style="color:var(--accent);">₹0.00</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="modal.close('submit-modal')">Cancel</button>
+      <button class="btn btn-primary" id="submit-quote-save-btn" onclick="submitQuotation()">Submit Quotation</button>
+    </div>
+  </div>
+</div>
+
+<!-- View Quotation Modal -->
+<div class="modal-overlay hidden" id="view-quote-modal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div class="modal-title" id="vq-title">Quotation Details</div>
+      <button class="btn btn-secondary btn-sm btn-icon" onclick="modal.close('view-quote-modal')">✕</button>
+    </div>
+    <div class="modal-body" id="vq-body"></div>
+    <div class="modal-footer" id="vq-footer">
+      <button class="btn btn-secondary" onclick="modal.close('view-quote-modal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="../assets/js/app.js"></script>
+<script>
+if (!auth.requireAuth()) throw '';
+render_sidebar('quotations');
+
+let allQuotes = [];
+let rfqItemsCache = {};
+
+if (auth.hasRole('vendor')) {
+  document.getElementById('submit-quote-btn').style.display = '';
+}
+
+async function loadQuotations() {
+  try {
+    allQuotes = await api.get('/quotations');
+    renderQuotes(allQuotes);
+  } catch(ex) {
+    toast.error(ex.message);
+    document.getElementById('quotes-tbody').innerHTML = `<tr><td colspan="9" class="text-center text-muted">Failed to load</td></tr>`;
+  }
+}
+
+function renderQuotes(quotes) {
+  if (!quotes.length) {
+    document.getElementById('quotes-tbody').innerHTML = `
+      <tr><td colspan="9"><div class="empty-state">
+        <div class="empty-icon">💬</div>
+        <div class="empty-title">No quotations yet</div>
+        <div class="empty-text">${auth.hasRole('vendor') ? 'Submit your first quotation for an open RFQ' : 'Waiting for vendor quotations'}</div>
+      </div></td></tr>`;
+    return;
+  }
+  document.getElementById('quotes-tbody').innerHTML = quotes.map(q => `
+    <tr style="cursor:pointer;" onclick="viewQuote(${q.id})">
+      <td class="font-mono fw-600">${q.quotation_number}</td>
+      <td>
+        <div class="fw-600">${q.rfq_number || ''}</div>
+        <div class="text-sm text-muted">${q.rfq_title || ''}</div>
+      </td>
+      <td>${q.company_name || q.vendor_name || '—'}</td>
+      <td>${fmt_currency(q.subtotal)}</td>
+      <td class="text-muted">${fmt_currency(q.tax_amount)}</td>
+      <td class="fw-600" style="color:var(--accent);">${fmt_currency(q.total_amount)}</td>
+      <td>${q.delivery_days ? `${q.delivery_days} days` : '—'}</td>
+      <td>${status_badge(q.status)}</td>
+      <td class="actions-col" onclick="event.stopPropagation()">
+        <button class="btn btn-secondary btn-sm" onclick="viewQuote(${q.id})">View</button>
+        ${(auth.hasRole('procurement_officer','admin','manager') && q.status === 'submitted') ?
+          `<button class="btn btn-primary btn-sm" onclick="requestApproval(${q.id})">→ Approve</button>` : ''}
+      </td>
+    </tr>
+  `).join('');
+}
+
+function filterQuotes() {
+  const q = document.getElementById('search-input').value.toLowerCase();
+  const status = document.getElementById('filter-status').value;
+  renderQuotes(allQuotes.filter(x =>
+    (!q || x.quotation_number?.toLowerCase().includes(q) || x.rfq_title?.toLowerCase().includes(q) || (x.company_name||x.vendor_name||'').toLowerCase().includes(q)) &&
+    (!status || x.status === status)
+  ));
+}
+
+async function openSubmitModal() {
+  // Load open RFQs
+  try {
+    const rfqs = await api.get('/rfqs');
+    const open = rfqs.filter(r => r.status === 'open');
+    const sel = document.getElementById('q-rfq-id');
+    sel.innerHTML = '<option value="">Select an open RFQ...</option>' +
+      open.map(r => `<option value="${r.id}">${r.rfq_number} — ${r.title}</option>`).join('');
+    document.getElementById('price-items-tbody').innerHTML = '<tr><td colspan="4" class="text-center text-muted">Select an RFQ first</td></tr>';
+    document.getElementById('q-subtotal').textContent = '₹0.00';
+    document.getElementById('q-total').textContent = '₹0.00';
+    document.getElementById('q-notes').value = '';
+    document.getElementById('q-delivery').value = '';
+    modal.open('submit-modal');
+  } catch(ex) { toast.error(ex.message); }
+}
+
+async function loadRFQItems() {
+  const rfqId = document.getElementById('q-rfq-id').value;
+  if (!rfqId) {
+    document.getElementById('price-items-tbody').innerHTML = '<tr><td colspan="4" class="text-center text-muted">Select an RFQ first</td></tr>';
+    return;
+  }
+  try {
+    const r = await api.get(`/rfqs/${rfqId}`);
+    rfqItemsCache[rfqId] = r.items || [];
+    renderPriceItems(r.items || []);
+  } catch(ex) { toast.error(ex.message); }
+}
+
+function renderPriceItems(items) {
+  if (!items.length) {
+    document.getElementById('price-items-tbody').innerHTML = '<tr><td colspan="4" class="text-center text-muted">No items in this RFQ</td></tr>';
+    return;
+  }
+  document.getElementById('price-items-tbody').innerHTML = items.map((item, i) => `
+    <tr>
+      <td class="fw-600">${item.item_name}<br><span class="text-sm text-muted">${item.specifications||''}</span></td>
+      <td>${item.quantity} ${item.unit}</td>
+      <td><input type="number" class="item-price" data-idx="${i}" placeholder="0.00" oninput="recalcTotal()" style="width:120px;"></td>
+      <td class="fw-600 item-line-total" id="line-total-${i}">₹0.00</td>
+    </tr>
+  `).join('');
+}
+
+function recalcTotal() {
+  const rfqId = document.getElementById('q-rfq-id').value;
+  const items = rfqItemsCache[rfqId] || [];
+  let subtotal = 0;
+  document.querySelectorAll('.item-price').forEach((inp, i) => {
+    const price = parseFloat(inp.value) || 0;
+    const qty = parseFloat(items[i]?.quantity) || 1;
+    const lineTotal = price * qty;
+    subtotal += lineTotal;
+    const el = document.getElementById(`line-total-${i}`);
+    if (el) el.textContent = fmt_currency(lineTotal);
+  });
+  const taxPct = parseFloat(document.getElementById('q-tax-pct').value) || 0;
+  const total = subtotal * (1 + taxPct/100);
+  document.getElementById('q-subtotal').textContent = fmt_currency(subtotal);
+  document.getElementById('q-total').textContent = fmt_currency(total);
+}
+
+async function submitQuotation() {
+  const rfqId = document.getElementById('q-rfq-id').value;
+  if (!rfqId) { toast.error('Please select an RFQ'); return; }
+  const items = rfqItemsCache[rfqId] || [];
+  const prices = [...document.querySelectorAll('.item-price')].map(inp => parseFloat(inp.value) || 0);
+  if (prices.some(p => p <= 0)) { toast.error('Please enter prices for all items'); return; }
+
+  let subtotal = 0;
+  const priceItems = items.map((item, i) => {
+    const lineTotal = (parseFloat(prices[i]) || 0) * (parseFloat(item.quantity) || 1);
+    subtotal += lineTotal;
+    return { rfq_item_id: item.id, unit_price: prices[i], quantity: item.quantity };
+  });
+  const taxPct = parseFloat(document.getElementById('q-tax-pct').value) || 18;
+  const taxAmt = subtotal * taxPct / 100;
+
+  const btn = document.getElementById('submit-quote-save-btn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+  try {
+    await api.post('/quotations', {
+      rfq_id: parseInt(rfqId),
+      subtotal, tax_percent: taxPct, tax_amount: taxAmt,
+      total_amount: subtotal + taxAmt,
+      delivery_days: parseInt(document.getElementById('q-delivery').value) || 0,
+      notes: document.getElementById('q-notes').value,
+      items: priceItems
+    });
+    toast.success('Quotation submitted successfully!');
+    modal.close('submit-modal');
+    loadQuotations();
+  } catch(ex) { toast.error(ex.message); }
+  finally { btn.disabled = false; btn.textContent = 'Submit Quotation'; }
+}
+
+async function viewQuote(id) {
+  try {
+    const q = await api.get(`/quotations/${id}`);
+    document.getElementById('vq-title').textContent = `${q.quotation_number} — ${q.rfq_title||''}`;
+    document.getElementById('vq-body').innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
+        <div style="display:grid;gap:10px;">
+          <div><div class="text-muted text-sm">Vendor</div><div class="fw-600">${q.company_name||q.vendor_name||'—'}</div></div>
+          <div><div class="text-muted text-sm">RFQ</div><div class="fw-600">${q.rfq_number} — ${q.rfq_title}</div></div>
+          <div><div class="text-muted text-sm">Delivery Days</div><div class="fw-600">${q.delivery_days || '—'} days</div></div>
+          <div><div class="text-muted text-sm">Status</div>${status_badge(q.status)}</div>
+        </div>
+        <div style="background:var(--bg-secondary);padding:16px;border-radius:8px;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:8px;"><span class="text-muted">Subtotal</span><span>${fmt_currency(q.subtotal)}</span></div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:8px;"><span class="text-muted">GST (${q.tax_percent||18}%)</span><span>${fmt_currency(q.tax_amount)}</span></div>
+          <div style="display:flex;justify-content:space-between;padding-top:8px;border-top:1px solid var(--border);"><span class="fw-600">Total</span><span class="fw-600" style="color:var(--accent);font-size:18px;">${fmt_currency(q.total_amount)}</span></div>
+        </div>
+      </div>
+      ${q.notes ? `<div class="mb-16"><div class="text-muted text-sm mb-4">Notes</div><div style="background:var(--bg-secondary);padding:12px;border-radius:8px;">${q.notes}</div></div>` : ''}
+      ${q.items?.length ? `
+        <div class="table-container">
+          <table><thead><tr><th>Item</th><th>Qty</th><th>Unit Price</th><th>Total</th></tr></thead>
+          <tbody>${q.items.map(i=>`
+            <tr><td class="fw-600">${i.item_name||i.description||'Item'}</td><td>${i.quantity}</td><td>${fmt_currency(i.unit_price)}</td><td class="fw-600">${fmt_currency(i.line_total||(i.unit_price*i.quantity))}</td></tr>
+          `).join('')}</tbody></table>
+        </div>` : ''}
+    `;
+    const footer = document.getElementById('vq-footer');
+    footer.innerHTML = `<button class="btn btn-secondary" onclick="modal.close('view-quote-modal')">Close</button>`;
+    if (auth.hasRole('procurement_officer','admin','manager') && q.status === 'submitted') {
+      footer.innerHTML += `<button class="btn btn-primary" onclick="modal.close('view-quote-modal');requestApproval(${q.id})">→ Send for Approval</button>`;
+    }
+    modal.open('view-quote-modal');
+  } catch(ex) { toast.error(ex.message); }
+}
+
+async function requestApproval(quotationId) {
+  try {
+    await api.post('/approvals', { quotation_id: quotationId });
+    toast.success('Sent for approval!');
+    loadQuotations();
+  } catch(ex) { toast.error(ex.message); }
+}
+
+// Compare Mode
+function showCompare() {
+  document.getElementById('compare-banner').style.display = '';
+  loadRFQsForCompare();
+}
+function hideCompare() {
+  document.getElementById('compare-banner').style.display = 'none';
+  document.getElementById('comparison-section').style.display = 'none';
+}
+
+async function loadRFQsForCompare() {
+  try {
+    const rfqs = await api.get('/rfqs');
+    const sel = document.getElementById('compare-rfq-select');
+    sel.innerHTML = '<option value="">Select RFQ to compare...</option>' +
+      rfqs.map(r => `<option value="${r.id}">${r.rfq_number} — ${r.title} (${r.quote_count||0} quotes)</option>`).join('');
+  } catch(ex) {}
+}
+
+async function loadComparison() {
+  const rfqId = document.getElementById('compare-rfq-select').value;
+  if (!rfqId) { document.getElementById('comparison-section').style.display = 'none'; return; }
+  try {
+    const data = await api.get(`/quotations/compare/${rfqId}`);
+    if (!data.quotations?.length) {
+      toast.info('No quotations found for this RFQ');
+      document.getElementById('comparison-section').style.display = 'none';
+      return;
+    }
+    document.getElementById('compare-rfq-info').textContent = `${data.rfq?.rfq_number} — ${data.rfq?.title}`;
+    renderComparison(data);
+    document.getElementById('comparison-section').style.display = '';
+  } catch(ex) { toast.error(ex.message); }
+}
+
+function renderComparison(data) {
+  const quotes = data.quotations;
+  const minTotal = Math.min(...quotes.map(q => parseFloat(q.total_amount)));
+  const minDelivery = Math.min(...quotes.map(q => parseInt(q.delivery_days||999)));
+
+  // Actions
+  document.getElementById('compare-actions').innerHTML = quotes
+    .filter(q => q.status === 'submitted')
+    .map(q => `<button class="btn btn-primary btn-sm" onclick="requestApproval(${q.id})">Approve ${q.quotation_number}</button>`)
+    .join('');
+
+  const rows = [
+    { label: 'Vendor', key: q => q.company_name || q.vendor_name },
+    { label: 'Quotation #', key: q => `<span class="font-mono">${q.quotation_number}</span>` },
+    { label: 'Subtotal', key: q => fmt_currency(q.subtotal) },
+    { label: 'GST', key: q => fmt_currency(q.tax_amount) },
+    { label: 'Total Amount', key: (q) => {
+      const isMin = parseFloat(q.total_amount) === minTotal;
+      return `<span style="color:${isMin?'var(--success)':'inherit'};font-weight:${isMin?700:400};">${fmt_currency(q.total_amount)}${isMin?' ✓':''}</span>`;
+    }},
+    { label: 'Delivery Days', key: (q) => {
+      const isMin = parseInt(q.delivery_days||999) === minDelivery;
+      return `<span style="color:${isMin?'var(--success)':'inherit'};font-weight:${isMin?700:400};">${q.delivery_days||'—'} days${isMin?' ✓':''}</span>`;
+    }},
+    { label: 'Status', key: q => status_badge(q.status) },
+    { label: 'Notes', key: q => `<span class="text-muted text-sm">${q.notes || '—'}</span>` },
+  ];
+
+  document.getElementById('comparison-table-wrap').innerHTML = `
+    <table>
+      <thead><tr>
+        <th style="width:140px;">Criteria</th>
+        ${quotes.map(q => `<th>${q.quotation_number}</th>`).join('')}
+      </tr></thead>
+      <tbody>
+        ${rows.map(row => `
+          <tr>
+            <td class="text-muted fw-600">${row.label}</td>
+            ${quotes.map(q => `<td>${row.key(q)}</td>`).join('')}
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+}
+
+loadQuotations();
+</script>
+</body>
+</html>
