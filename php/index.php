@@ -1,82 +1,264 @@
 <?php
+
 require_once __DIR__ . '/config/config.php';
 
+// ========================================
+// Error Handling
+// ========================================
+
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+// ========================================
+// Request Info
+// ========================================
+
 $method = $_SERVER['REQUEST_METHOD'];
-$uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+
+$uri = parse_url(
+    $_SERVER['REQUEST_URI'],
+    PHP_URL_PATH
+);
+
 $uri = rtrim($uri, '/');
 
-// Route map
+if ($uri === '') {
+    $uri = '/';
+}
+
+// ========================================
+// API Home
+// ========================================
+
+if (
+    $uri === '/api'
+    || $uri === '/api/'
+) {
+
+    json_response([
+        'success' => true,
+        'application' => APP_NAME,
+        'version' => APP_VERSION,
+        'message' => 'VendorBridge API Running'
+    ]);
+}
+
+// ========================================
+// Routes
+// ========================================
+
 $routes = [
-    'POST /api/auth/login'            => 'auth/login',
-    'POST /api/auth/register'         => 'auth/register',
-    'GET /api/auth/me'                => 'auth/me',
 
-    'GET /api/vendors'                => 'vendors/list',
-    'POST /api/vendors'               => 'vendors/create',
-    'GET /api/vendors/{id}'           => 'vendors/get',
-    'PUT /api/vendors/{id}'           => 'vendors/update',
+    // AUTH
 
-    'GET /api/rfqs'                   => 'rfqs/list',
-    'POST /api/rfqs'                  => 'rfqs/create',
-    'GET /api/rfqs/{id}'              => 'rfqs/get',
-    'PUT /api/rfqs/{id}'              => 'rfqs/update',
+    'POST /api/auth/login' => 'auth/login',
+    'POST /api/auth/register' => 'auth/register',
+    'POST /api/auth/logout' => 'auth/logout',
+    'GET /api/auth/me' => 'auth/me',
 
-    'GET /api/quotations'             => 'quotations/list',
-    'POST /api/quotations'            => 'quotations/create',
-    'GET /api/quotations/{id}'        => 'quotations/get',
-    'GET /api/quotations/compare/{rfq_id}' => 'quotations/compare',
+    // VENDOR
 
-    'POST /api/approvals'             => 'approvals/create',
-    'PUT /api/approvals/{id}'         => 'approvals/action',
-    'GET /api/approvals'              => 'approvals/list',
+    'GET /api/vendors' => 'vendor/list',
+    'POST /api/vendors' => 'vendor/create',
+    'GET /api/vendors/{id}' => 'vendor/get',
+    'PUT /api/vendors/{id}' => 'vendor/update',
+    'DELETE /api/vendors/{id}' => 'vendor/delete',
 
-    'GET /api/purchase-orders'        => 'purchase_orders/list',
-    'POST /api/purchase-orders'       => 'purchase_orders/create',
-    'GET /api/purchase-orders/{id}'   => 'purchase_orders/get',
+    // RFQ
 
-    'GET /api/invoices'               => 'invoices/list',
-    'POST /api/invoices'              => 'invoices/create',
-    'GET /api/invoices/{id}'          => 'invoices/get',
-    'GET /api/invoices/{id}/pdf'      => 'invoices/pdf',
+    'GET /api/rfqs' => 'rfq/list',
+    'POST /api/rfqs' => 'rfq/create',
+    'GET /api/rfqs/{id}' => 'rfq/get',
+    'PUT /api/rfqs/{id}' => 'rfq/update',
 
-    'GET /api/activity-logs'          => 'activity/list',
-    'GET /api/dashboard'              => 'dashboard/stats',
-    'GET /api/reports'                => 'reports/analytics',
-    'GET /api/users'                  => 'users/list',
+    'POST /api/rfqs/{id}/assign-vendor'
+        => 'rfq/assign_vendor',
+
+    'POST /api/rfqs/{id}/attachment'
+        => 'rfq/upload_attachment',
+
+    // QUOTATION
+
+    'GET /api/quotations' => 'quotation/list',
+    'POST /api/quotations' => 'quotation/create',
+    'POST /api/quotations/submit'
+        => 'quotation/submit',
+
+    'GET /api/quotations/{id}'
+        => 'quotation/get',
+
+    'GET /api/quotations/compare/{rfq_id}'
+        => 'quotation/compare',
+
+    // APPROVAL
+
+    'POST /api/approvals'
+        => 'approval/create',
+
+    'GET /api/approvals'
+        => 'approval/list',
+
+    'PUT /api/approvals/{id}/approve'
+        => 'approval/approve',
+
+    'PUT /api/approvals/{id}/reject'
+        => 'approval/reject',
+
+    // PURCHASE ORDER
+
+    'GET /api/purchase-orders'
+        => 'purchase_order/list',
+
+    'POST /api/purchase-orders'
+        => 'purchase_order/create',
+
+    'GET /api/purchase-orders/{id}'
+        => 'purchase_order/get',
+
+    'GET /api/purchase-orders/{id}/generate'
+        => 'purchase_order/generate',
+
+    // INVOICE
+
+    'GET /api/invoices'
+        => 'invoice/list',
+
+    'POST /api/invoices'
+        => 'invoice/create',
+
+    'GET /api/invoices/{id}'
+        => 'invoice/get',
+
+    'GET /api/invoices/{id}/pdf'
+        => 'invoice/pdf',
+
+    'POST /api/invoices/{id}/email'
+        => 'invoice/email',
+
+    // NOTIFICATIONS
+
+    'POST /api/notifications'
+        => 'notifications/create',
+
+    'GET /api/notifications'
+        => 'notifications/list',
+
+    'PUT /api/notifications/{id}/read'
+        => 'notifications/mark_read',
+
+    // LOGS
+
+    'GET /api/logs'
+        => 'logs/list',
+
+    'GET /api/logs/stats'
+        => 'logs/stats',
+
+    'GET /api/logs/analytics'
+        => 'logs/analytics',
+
+    // REPORTS
+
+    'GET /api/reports/spending'
+        => 'reports/spending',
+
+    'GET /api/reports/vendors'
+        => 'reports/vendors',
+
+    'GET /api/reports/procurement'
+        => 'reports/procurement',
 ];
 
-// Match route with params
+// ========================================
+// Route Matching
+// ========================================
+
 $matched = false;
-$params = [];
 
 foreach ($routes as $pattern => $handler) {
-    [$routeMethod, $routePath] = explode(' ', $pattern, 2);
-    if ($routeMethod !== $method) continue;
 
-    // Convert {param} to regex
-    $regex = preg_replace('/\{(\w+)\}/', '([^/]+)', $routePath);
+    [$routeMethod, $routePath] =
+        explode(' ', $pattern, 2);
+
+    if ($routeMethod !== $method) {
+        continue;
+    }
+
+    $regex = preg_replace(
+        '/\{(\w+)\}/',
+        '([^\/]+)',
+        $routePath
+    );
+
     $regex = '#^' . $regex . '$#';
 
-    if (preg_match($regex, $uri, $matches)) {
-        // Extract param names
-        preg_match_all('/\{(\w+)\}/', $routePath, $paramNames);
-        foreach ($paramNames[1] as $i => $name) {
-            $params[$name] = $matches[$i + 1];
+    if (
+        preg_match(
+            $regex,
+            $uri,
+            $matches
+        )
+    ) {
+
+        $params = [];
+
+        preg_match_all(
+            '/\{(\w+)\}/',
+            $routePath,
+            $paramNames
+        );
+
+        foreach (
+            $paramNames[1]
+            as $index => $name
+        ) {
+
+            $params[$name] =
+                $matches[$index + 1];
         }
-        $_REQUEST['_params'] = $params;
-        
-        // Load handler
-        $file = __DIR__ . '/api/controllers/' . $handler . '.php';
-        if (file_exists($file)) {
+
+        $_REQUEST['_params'] =
+            $params;
+
+        $file =
+            __DIR__ .
+            '/' .
+            $handler .
+            '.php';
+
+        if (!file_exists($file)) {
+
+            json_response([
+                'success' => false,
+                'error' => 'Handler not found',
+                'handler' => $handler
+            ], 500);
+        }
+
+        try {
+
             require $file;
-        } else {
-            json_response(['error' => 'Handler not found: ' . $handler], 500);
+
+        } catch (Throwable $e) {
+
+            json_response([
+                'success' => false,
+                'error' => $e->getMessage()
+            ], 500);
         }
+
         $matched = true;
-        break;
+        exit;
     }
 }
 
-if (!$matched) {
-    json_response(['error' => 'Route not found', 'uri' => $uri, 'method' => $method], 404);
-}
+// ========================================
+// Route Not Found
+// ========================================
+
+json_response([
+    'success' => false,
+    'error' => 'Route not found',
+    'method' => $method,
+    'uri' => $uri
+], 404);
