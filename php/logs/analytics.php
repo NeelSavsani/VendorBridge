@@ -1,34 +1,296 @@
 <?php
-$auth = require_auth();
+
+require_once '../config/config.php';
+require_once '../config/helpers.php';
+require_once '../config/auth.php';
+
+// ========================================
+// Authentication
+// ========================================
+
+$auth = require_auth([
+    'admin',
+    'manager',
+    'procurement_officer'
+]);
+
 $db = getDB();
-$month = $_GET['month'] ?? date('Y-m');
 
-$r = [];
-// Total spend this month
-$s=$db->prepare("SELECT COALESCE(SUM(total_amount),0) as total, COUNT(*) as count FROM purchase_orders WHERE DATE_FORMAT(created_at,'%Y-%m')=?");
-$s->execute([$month]); $row=$s->fetch(); $r['total_spend']=$row['total']; $r['active_vendors']=$row['count'];
+$month = sanitize(
+    $_GET['month'] ?? date('Y-m')
+);
 
-// Savings vs budget
-$s=$db->prepare("SELECT COALESCE(SUM(rf.budget),0) as budget, COALESCE(SUM(po.total_amount),0) as spend
-    FROM purchase_orders po JOIN rfqs rf ON rf.id=po.rfq_id WHERE DATE_FORMAT(po.created_at,'%Y-%m')=?");
-$s->execute([$month]); $brow=$s->fetch();
-$r['budget']=$brow['budget']; $r['savings_pct']=$brow['budget']>0?round(($brow['budget']-$brow['spend'])/$brow['budget']*100,1):0;
-$r['invoices_count']=(int)$db->query("SELECT COUNT(*) as c FROM invoices")->fetch()['c'];
+try {
 
-// Spend by category
-$s=$db->prepare("SELECT rf.category, SUM(po.subtotal) as total FROM purchase_orders po JOIN rfqs rf ON rf.id=po.rfq_id
-    WHERE DATE_FORMAT(po.created_at,'%Y-%m')=? GROUP BY rf.category ORDER BY total DESC");
-$s->execute([$month]); $r['spend_by_category']=$s->fetchAll();
+    $analytics = [];
 
-// Top vendors
-$s=$db->prepare("SELECT v.company_name, SUM(po.total_amount) as spend, COUNT(po.id) as pos
-    FROM purchase_orders po JOIN vendors v ON v.id=po.vendor_id WHERE DATE_FORMAT(po.created_at,'%Y-%m')=?
-    GROUP BY v.id ORDER BY spend DESC LIMIT 5");
-$s->execute([$month]); $r['top_vendors']=$s->fetchAll();
+    // ========================================
+    // Monthly Spend
+    // ========================================
 
-// Monthly trend
-$s=$db->query("SELECT DATE_FORMAT(created_at,'%b') as m, SUM(total_amount) as total FROM purchase_orders
-    WHERE created_at>=DATE_SUB(NOW(),INTERVAL 6 MONTH) GROUP BY YEAR(created_at),MONTH(created_at) ORDER BY created_at");
-$r['monthly_trend']=$s->fetchAll();
+    $stmt = $db->prepare("
+        SELECT
+            COALESCE(SUM(total_amount),0) AS total_spend,
+            COUNT(*) AS purchase_orders
+        FROM purchase_orders
+        WHERE DATE_FORMAT(created_at,'%Y-%m') = ?
+    ");
 
-json_response($r);
+    $stmt->execute([
+        $month
+    ]);
+
+    $spendData = $stmt->fetch();
+
+    $analytics['total_spend'] =
+        (float)$spendData['total_spend'];
+
+    $analytics['purchase_orders'] =
+        (int)$spendData['purchase_orders'];
+
+    // ========================================
+    // Active Vendors
+    // ========================================
+
+    $stmt = $db->prepare("
+        SELECT COUNT(DISTINCT vendor_id)
+        AS active_vendors
+
+        FROM purchase_orders
+
+        WHERE DATE_FORMAT(created_at,'%Y-%m') = ?
+    ");
+
+    $stmt->execute([
+        $month
+    ]);
+
+    $analytics['active_vendors'] =
+        (int)$stmt->fetch()['active_vendors'];
+
+    // ========================================
+    // Budget vs Spend
+    // ========================================
+
+    $stmt = $db->prepare("
+        SELECT
+            COALESCE(SUM(r.budget),0) AS budget,
+            COALESCE(SUM(po.total_amount),0) AS spend
+
+        FROM purchase_orders po
+
+        INNER JOIN rfqs r
+            ON r.id = po.rfq_id
+
+        WHERE DATE_FORMAT(
+            po.created_at,
+            '%Y-%m'
+        ) = ?
+    ");
+
+    $stmt->execute([
+        $month
+    ]);
+
+    $budgetData = $stmt->fetch();
+
+    $budget =
+        (float)$budgetData['budget'];
+
+    $spend =
+        (float)$budgetData['spend'];
+
+    $analytics['budget'] =
+        $budget;
+
+    $analytics['actual_spend'] =
+        $spend;
+
+    $analytics['savings'] =
+        round(
+            $budget - $spend,
+            2
+        );
+
+    $analytics['savings_percentage'] =
+        $budget > 0
+        ? round(
+            (($budget - $spend) / $budget) * 100,
+            2
+        )
+        : 0;
+
+    // ========================================
+    // System Counts
+    // ========================================
+
+    $analytics['total_vendors'] =
+        (int)$db->query("
+            SELECT COUNT(*)
+            FROM vendors
+        ")->fetchColumn();
+
+    $analytics['total_rfqs'] =
+        (int)$db->query("
+            SELECT COUNT(*)
+            FROM rfqs
+        ")->fetchColumn();
+
+    $analytics['total_quotations'] =
+        (int)$db->query("
+            SELECT COUNT(*)
+            FROM quotations
+        ")->fetchColumn();
+
+    $analytics['total_purchase_orders'] =
+        (int)$db->query("
+            SELECT COUNT(*)
+            FROM purchase_orders
+        ")->fetchColumn();
+
+    $analytics['total_invoices'] =
+        (int)$db->query("
+            SELECT COUNT(*)
+            FROM invoices
+        ")->fetchColumn();
+
+    // ========================================
+    // Spend By Category
+    // ========================================
+
+    $stmt = $db->prepare("
+        SELECT
+            r.category,
+            SUM(po.subtotal) AS total
+
+        FROM purchase_orders po
+
+        INNER JOIN rfqs r
+            ON r.id = po.rfq_id
+
+        WHERE DATE_FORMAT(
+            po.created_at,
+            '%Y-%m'
+        ) = ?
+
+        GROUP BY r.category
+
+        ORDER BY total DESC
+    ");
+
+    $stmt->execute([
+        $month
+    ]);
+
+    $analytics['spend_by_category'] =
+        $stmt->fetchAll();
+
+    // ========================================
+    // Top Vendors
+    // ========================================
+
+    $stmt = $db->prepare("
+        SELECT
+            v.company_name,
+            COUNT(po.id) AS po_count,
+            SUM(po.total_amount) AS spend
+
+        FROM purchase_orders po
+
+        INNER JOIN vendors v
+            ON v.id = po.vendor_id
+
+        WHERE DATE_FORMAT(
+            po.created_at,
+            '%Y-%m'
+        ) = ?
+
+        GROUP BY v.id
+
+        ORDER BY spend DESC
+
+        LIMIT 5
+    ");
+
+    $stmt->execute([
+        $month
+    ]);
+
+    $analytics['top_vendors'] =
+        $stmt->fetchAll();
+
+    // ========================================
+    // Monthly Trend
+    // ========================================
+
+    $stmt = $db->query("
+        SELECT
+            DATE_FORMAT(
+                created_at,
+                '%b %Y'
+            ) AS month,
+
+            SUM(total_amount) AS total
+
+        FROM purchase_orders
+
+        WHERE created_at >=
+        DATE_SUB(
+            NOW(),
+            INTERVAL 6 MONTH
+        )
+
+        GROUP BY
+            YEAR(created_at),
+            MONTH(created_at)
+
+        ORDER BY
+            YEAR(created_at),
+            MONTH(created_at)
+    ");
+
+    $analytics['monthly_trend'] =
+        $stmt->fetchAll();
+
+    // ========================================
+    // Invoice Statistics
+    // ========================================
+
+    $analytics['paid_invoices'] =
+        (int)$db->query("
+            SELECT COUNT(*)
+            FROM invoices
+            WHERE status='paid'
+        ")->fetchColumn();
+
+    $analytics['pending_invoices'] =
+        (int)$db->query("
+            SELECT COUNT(*)
+            FROM invoices
+            WHERE status IN
+            ('draft','sent')
+        ")->fetchColumn();
+
+    $analytics['overdue_invoices'] =
+        (int)$db->query("
+            SELECT COUNT(*)
+            FROM invoices
+            WHERE status='overdue'
+        ")->fetchColumn();
+
+    // ========================================
+    // Response
+    // ========================================
+
+    success_response(
+        'Analytics retrieved successfully',
+        $analytics
+    );
+
+} catch (Exception $e) {
+
+    error_response(
+        $e->getMessage(),
+        500
+    );
+}
