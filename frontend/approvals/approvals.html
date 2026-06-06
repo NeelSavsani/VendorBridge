@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Approvals — VendorBridge</title>
+  <link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar"></aside>
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-left">
+        <div><div class="page-title">Approval Workflow</div><div class="page-subtitle">Review & action procurement requests</div></div>
+      </div>
+    </div>
+    <div class="page-content">
+
+      <!-- Pending Approvals -->
+      <div class="card mb-24" id="pending-section">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Pending Approvals</div>
+            <div class="card-subtitle">Quotations awaiting your decision</div>
+          </div>
+          <span class="badge badge-orange" id="pending-count">0 pending</span>
+        </div>
+        <div id="pending-list" style="padding:0 24px 24px;">
+          <div class="text-center" style="padding:30px;"><div class="spinner"></div></div>
+        </div>
+      </div>
+
+      <!-- All Approvals History -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Approval History</div>
+          <select id="filter-status" onchange="filterApprovals()" style="width:150px;">
+            <option value="">All Status</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+          </select>
+        </div>
+        <div class="table-container">
+          <table>
+            <thead><tr>
+              <th>RFQ</th><th>Quotation</th><th>Vendor</th><th>Amount</th>
+              <th>Approver</th><th>Status</th><th>Date</th><th>Actions</th>
+            </tr></thead>
+            <tbody id="approvals-tbody">
+              <tr><td colspan="8" class="text-center"><div class="spinner"></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Action Modal -->
+<div class="modal-overlay hidden" id="action-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="action-modal-title">Review Quotation</div>
+      <button class="btn btn-secondary btn-sm btn-icon" onclick="modal.close('action-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="action-detail" style="margin-bottom:20px;"></div>
+
+      <!-- Workflow Steps -->
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:24px;">
+        <div style="flex:1;text-align:center;">
+          <div style="width:32px;height:32px;border-radius:50%;background:var(--success);color:#000;display:flex;align-items:center;justify-content:center;margin:0 auto 4px;font-size:12px;font-weight:700;">1</div>
+          <div class="text-sm text-muted">Quotation<br>Submitted</div>
+        </div>
+        <div style="flex:0;width:40px;height:2px;background:var(--success);"></div>
+        <div style="flex:1;text-align:center;">
+          <div style="width:32px;height:32px;border-radius:50%;background:var(--warning);color:#000;display:flex;align-items:center;justify-content:center;margin:0 auto 4px;font-size:12px;font-weight:700;">2</div>
+          <div class="text-sm text-muted">Under<br>Review</div>
+        </div>
+        <div style="flex:0;width:40px;height:2px;background:var(--border);"></div>
+        <div style="flex:1;text-align:center;">
+          <div style="width:32px;height:32px;border-radius:50%;background:var(--border);color:var(--text-muted);display:flex;align-items:center;justify-content:center;margin:0 auto 4px;font-size:12px;font-weight:700;">3</div>
+          <div class="text-sm text-muted">Decision<br>Made</div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Approval Remarks</label>
+        <textarea id="action-remarks" rows="3" placeholder="Add your comments or reason for decision..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="modal.close('action-modal')">Cancel</button>
+      <button class="btn btn-danger" id="reject-btn" onclick="doAction('rejected')">✕ Reject</button>
+      <button class="btn btn-success" id="approve-btn" onclick="doAction('approved')">✓ Approve</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="../assets/js/app.js"></script>
+<script>
+if (!auth.requireAuth()) throw '';
+render_sidebar('approvals');
+
+let allApprovals = [];
+let currentActionId = null;
+
+async function loadApprovals() {
+  try {
+    allApprovals = await api.get('/approvals');
+    renderApprovals(allApprovals);
+    renderPending();
+  } catch(ex) {
+    toast.error(ex.message);
+    document.getElementById('approvals-tbody').innerHTML = `<tr><td colspan="8" class="text-center text-muted">Failed to load approvals</td></tr>`;
+    document.getElementById('pending-list').innerHTML = `<div class="text-center text-muted">Failed to load</div>`;
+  }
+}
+
+function renderPending() {
+  const pending = allApprovals.filter(a => a.status === 'pending');
+  document.getElementById('pending-count').textContent = `${pending.length} pending`;
+  if (!pending.length) {
+    document.getElementById('pending-list').innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">✅</div>
+        <div class="empty-title">All caught up!</div>
+        <div class="empty-text">No pending approvals at this time</div>
+      </div>`;
+    return;
+  }
+  document.getElementById('pending-list').innerHTML = pending.map(a => `
+    <div style="border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:12px;background:var(--bg-secondary);transition:border-color 0.2s;" 
+         onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;">
+        <div style="flex:1;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+            <span class="fw-600 font-mono">${a.rfq_number}</span>
+            <span class="badge badge-orange">Pending</span>
+          </div>
+          <div class="fw-600 mb-4">${a.rfq_title}</div>
+          <div style="display:flex;gap:24px;flex-wrap:wrap;">
+            <div><span class="text-muted text-sm">Vendor</span><div>${a.vendor_name}</div></div>
+            <div><span class="text-muted text-sm">Quotation</span><div class="font-mono">${a.quotation_number}</div></div>
+            <div><span class="text-muted text-sm">Amount</span><div class="fw-600" style="color:var(--accent);">${fmt_currency(a.total_amount)}</div></div>
+            <div><span class="text-muted text-sm">Requested</span><div>${fmt_date(a.created_at)}</div></div>
+          </div>
+        </div>
+        ${auth.hasRole('manager','admin') ? `
+          <div style="display:flex;gap:8px;flex-shrink:0;">
+            <button class="btn btn-danger btn-sm" onclick="openActionModal(${a.id})">Review & Decide</button>
+          </div>` : '<div class="badge badge-orange">Awaiting manager</div>'}
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderApprovals(approvals) {
+  if (!approvals.length) {
+    document.getElementById('approvals-tbody').innerHTML = `
+      <tr><td colspan="8"><div class="empty-state">
+        <div class="empty-icon">✅</div>
+        <div class="empty-title">No approval records</div>
+        <div class="empty-text">Approval records will appear here once quotations are submitted for review</div>
+      </div></td></tr>`;
+    return;
+  }
+  document.getElementById('approvals-tbody').innerHTML = approvals.map(a => `
+    <tr>
+      <td>
+        <div class="fw-600">${a.rfq_number}</div>
+        <div class="text-sm text-muted">${a.rfq_title}</div>
+      </td>
+      <td class="font-mono">${a.quotation_number}</td>
+      <td>${a.vendor_name}</td>
+      <td class="fw-600">${fmt_currency(a.total_amount)}</td>
+      <td>${a.approver_name || '—'}</td>
+      <td>${status_badge(a.status)}</td>
+      <td class="text-muted">${fmt_date(a.action_at || a.created_at)}</td>
+      <td class="actions-col">
+        ${a.status === 'pending' && auth.hasRole('manager','admin') ?
+          `<button class="btn btn-primary btn-sm" onclick="openActionModal(${a.id})">Decide</button>` :
+          `<button class="btn btn-secondary btn-sm" onclick="viewApproval(${a.id})">View</button>`}
+      </td>
+    </tr>
+  `).join('');
+}
+
+function filterApprovals() {
+  const status = document.getElementById('filter-status').value;
+  renderApprovals(allApprovals.filter(a => !status || a.status === status));
+}
+
+async function openActionModal(id) {
+  const a = allApprovals.find(x => x.id === id);
+  if (!a) return;
+  currentActionId = id;
+  document.getElementById('action-modal-title').textContent = `Review: ${a.quotation_number}`;
+  document.getElementById('action-remarks').value = '';
+  document.getElementById('action-detail').innerHTML = `
+    <div style="background:var(--bg-secondary);padding:16px;border-radius:var(--radius);display:grid;grid-template-columns:repeat(2,1fr);gap:12px;">
+      <div><div class="text-muted text-sm">RFQ</div><div class="fw-600">${a.rfq_number} — ${a.rfq_title}</div></div>
+      <div><div class="text-muted text-sm">Vendor</div><div class="fw-600">${a.vendor_name}</div></div>
+      <div><div class="text-muted text-sm">Quotation</div><div class="fw-600 font-mono">${a.quotation_number}</div></div>
+      <div><div class="text-muted text-sm">Total Amount</div><div class="fw-600" style="color:var(--accent);font-size:20px;">${fmt_currency(a.total_amount)}</div></div>
+    </div>
+  `;
+  modal.open('action-modal');
+}
+
+async function doAction(status) {
+  if (!currentActionId) return;
+  const remarks = document.getElementById('action-remarks').value;
+  const btn = status === 'approved' ? document.getElementById('approve-btn') : document.getElementById('reject-btn');
+  btn.disabled = true;
+  try {
+    await api.put(`/approvals/${currentActionId}`, { status, remarks });
+    toast.success(`Quotation ${status} successfully!`);
+    modal.close('action-modal');
+    loadApprovals();
+  } catch(ex) { toast.error(ex.message); }
+  finally { btn.disabled = false; }
+}
+
+async function viewApproval(id) {
+  const a = allApprovals.find(x => x.id === id);
+  if (!a) return;
+  currentActionId = id;
+  document.getElementById('action-modal-title').textContent = `Approval — ${a.quotation_number}`;
+  document.getElementById('action-detail').innerHTML = `
+    <div style="background:var(--bg-secondary);padding:16px;border-radius:var(--radius);display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:12px;">
+      <div><div class="text-muted text-sm">RFQ</div><div class="fw-600">${a.rfq_number} — ${a.rfq_title}</div></div>
+      <div><div class="text-muted text-sm">Vendor</div><div class="fw-600">${a.vendor_name}</div></div>
+      <div><div class="text-muted text-sm">Quotation</div><div class="fw-600 font-mono">${a.quotation_number}</div></div>
+      <div><div class="text-muted text-sm">Total Amount</div><div class="fw-600" style="color:var(--accent);font-size:20px;">${fmt_currency(a.total_amount)}</div></div>
+      <div><div class="text-muted text-sm">Status</div>${status_badge(a.status)}</div>
+      <div><div class="text-muted text-sm">Actioned</div><div>${fmt_datetime(a.action_at) || '—'}</div></div>
+    </div>
+    ${a.remarks ? `<div style="background:var(--bg-secondary);padding:12px;border-radius:8px;"><div class="text-muted text-sm mb-4">Remarks</div><div>${a.remarks}</div></div>` : ''}
+  `;
+  document.getElementById('action-remarks').value = a.remarks || '';
+  document.getElementById('action-remarks').disabled = true;
+  document.getElementById('approve-btn').style.display = 'none';
+  document.getElementById('reject-btn').style.display = 'none';
+  modal.open('action-modal');
+  // Re-enable for next open
+  setTimeout(() => {
+    document.getElementById('action-remarks').disabled = false;
+    document.getElementById('approve-btn').style.display = '';
+    document.getElementById('reject-btn').style.display = '';
+  }, 100);
+}
+
+loadApprovals();
+</script>
+</body>
+</html>
