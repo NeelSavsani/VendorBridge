@@ -1,15 +1,177 @@
 <?php
+
+require_once '../config/config.php';
+require_once '../config/helpers.php';
+require_once '../config/auth.php';
+
+// ========================================
+// Authentication
+// ========================================
+
 $auth = require_auth();
-$id = $_REQUEST['_params']['id'] ?? 0;
+
+// ========================================
+// Invoice ID
+// ========================================
+
+$id = (int)($_REQUEST['_params']['id'] ?? 0);
+
+if ($id <= 0) {
+
+    error_response(
+        'Invalid Invoice ID',
+        400
+    );
+}
+
 $db = getDB();
-$stmt=$db->prepare("SELECT i.*, v.company_name, v.email as vendor_email, v.gst_number, v.address as vendor_address, v.phone as vendor_phone,
-    po.po_number, po.delivery_date, po.tax_percent, r.title as rfq_title, r.rfq_number, q.quotation_number
-    FROM invoices i JOIN vendors v ON v.id=i.vendor_id JOIN purchase_orders po ON po.id=i.po_id
-    JOIN rfqs r ON r.id=po.rfq_id JOIN quotations q ON q.id=po.quotation_id WHERE i.id=?");
+
+// ========================================
+// Get Invoice
+// ========================================
+
+$stmt = $db->prepare("
+    SELECT
+        i.id,
+        i.invoice_number,
+        i.po_id,
+        i.vendor_id,
+        i.subtotal,
+        i.cgst,
+        i.sgst,
+        i.igst,
+        i.total_amount,
+        i.due_date,
+        i.status,
+        i.created_at,
+
+        v.company_name,
+        v.contact_person,
+        v.email AS vendor_email,
+        v.phone AS vendor_phone,
+        v.gst_number,
+        v.address AS vendor_address,
+
+        po.po_number,
+        po.delivery_date,
+        po.tax_percent,
+
+        r.rfq_number,
+        r.title AS rfq_title,
+
+        q.id AS quotation_id,
+        q.quotation_number
+
+    FROM invoices i
+
+    INNER JOIN vendors v
+        ON v.id = i.vendor_id
+
+    INNER JOIN purchase_orders po
+        ON po.id = i.po_id
+
+    INNER JOIN rfqs r
+        ON r.id = po.rfq_id
+
+    INNER JOIN quotations q
+        ON q.id = po.quotation_id
+
+    WHERE i.id = ?
+");
+
 $stmt->execute([$id]);
-$inv=$stmt->fetch();
-if(!$inv) json_response(['error'=>'Invoice not found'],404);
-$stmt=$db->prepare("SELECT qi.* FROM quotation_items qi JOIN quotations q ON q.id=qi.quotation_id WHERE q.id=?");
-$stmt->execute([$inv['quotation_id']]);
-$inv['items']=$stmt->fetchAll();
-json_response($inv);
+
+$invoice = $stmt->fetch();
+
+if (!$invoice) {
+
+    error_response(
+        'Invoice not found',
+        404
+    );
+}
+
+// ========================================
+// Vendor Access Restriction
+// ========================================
+
+if (
+    isset($auth['role']) &&
+    $auth['role'] === 'vendor'
+) {
+
+    $stmt = $db->prepare("
+        SELECT id
+        FROM vendors
+        WHERE user_id = ?
+        LIMIT 1
+    ");
+
+    $stmt->execute([
+        $auth['id']
+    ]);
+
+    $vendor = $stmt->fetch();
+
+    if (
+        !$vendor ||
+        $vendor['id'] != $invoice['vendor_id']
+    ) {
+
+        error_response(
+            'Access denied',
+            403
+        );
+    }
+}
+
+// ========================================
+// Invoice Items
+// ========================================
+
+$stmt = $db->prepare("
+    SELECT
+        qi.id,
+        qi.rfq_item_id,
+        qi.item_name,
+        qi.quantity,
+        qi.unit_price,
+        qi.total_price
+
+    FROM quotation_items qi
+
+    WHERE qi.quotation_id = ?
+
+    ORDER BY qi.id ASC
+");
+
+$stmt->execute([
+    $invoice['quotation_id']
+]);
+
+$invoice['items'] =
+    $stmt->fetchAll();
+
+// ========================================
+// Summary
+// ========================================
+
+$invoice['summary'] = [
+    'item_count' => count(
+        $invoice['items']
+    ),
+    'subtotal' => $invoice['subtotal'],
+    'cgst' => $invoice['cgst'],
+    'sgst' => $invoice['sgst'],
+    'igst' => $invoice['igst'],
+    'grand_total' => $invoice['total_amount']
+];
+
+// ========================================
+// Response
+// ========================================
+
+success_response(
+    'Invoice retrieved successfully',
+    $invoice
+);
