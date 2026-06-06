@@ -115,50 +115,6 @@
           Already have an account? <a href="login.html">Sign in</a>
         </div>
       </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>Role *</label>
-          <select id="role">
-            <option value="vendor">Vendor</option>
-            <option value="procurement_officer">Procurement Officer</option>
-            <option value="manager">Manager / Approver</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Country</label>
-          <input type="text" id="country" placeholder="India" value="India">
-        </div>
-      </div>
-      <div class="form-group" id="vendor-extra" style="display:none;">
-        <label>GST Number</label>
-        <input type="text" id="gst_number" placeholder="22AAAAA0000A1Z5">
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-  <label>Password *</label>
-  <div class="password-wrapper">
-    <input type="password" id="password" placeholder="Min 8 characters" required>
-<span class="password-toggle" onclick="togglePassword('password', this)">
-  <i class="fa-regular fa-eye"></i>
-</span>  </div>
-</div>
-
-<div class="form-group">
-  <label>Confirm Password *</label>
-  <div class="password-wrapper">
-    <input type="password" id="confirm_password" placeholder="Re-enter password" required>
-<span class="password-toggle" onclick="togglePassword('confirm_password', this)">
-  <i class="fa-regular fa-eye"></i>
-</span>
-  </div>
-</div>
-      </div>
-      <button type="submit" class="btn btn-primary btn-block btn-lg" id="reg-btn">
-        Create Account
-      </button>
-    </form>
-    <div style="margin-top:16px; text-align:center; font-size:13px; color:var(--text-secondary);">
-      Already have an account? <a href="login.html">Login</a>
     </div>
     <script src="../assets/js/app.js"></script>
     <script>
