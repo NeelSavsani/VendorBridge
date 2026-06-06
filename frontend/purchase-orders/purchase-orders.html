@@ -119,12 +119,42 @@ if (!auth.hasRole('procurement_officer','admin')) {
 }
 
 async function loadPOs() {
+
   try {
-    allPOs = await api.get('/purchase-orders');
+
+    const response =
+      await api.get('/purchase-orders');
+
+    allPOs =
+      response.purchase_orders ||
+      response.data?.purchase_orders ||
+      response.data ||
+      [];
+
     renderPOs(allPOs);
-  } catch(ex) {
-    toast.error(ex.message);
-    document.getElementById('po-tbody').innerHTML = `<tr><td colspan="9" class="text-center text-muted">Failed to load</td></tr>`;
+
+  } catch (ex) {
+
+    console.error(
+      'Load POs Error:',
+      ex
+    );
+
+    toast.error(
+      ex.message ||
+      'Failed to load purchase orders'
+    );
+
+    document.getElementById(
+      'po-tbody'
+    ).innerHTML = `
+      <tr>
+        <td colspan="9"
+            class="text-center text-muted">
+          Failed to load purchase orders
+        </td>
+      </tr>
+    `;
   }
 }
 

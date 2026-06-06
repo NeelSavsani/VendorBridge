@@ -16,13 +16,8 @@ $db = getDB();
 // Filters
 // ========================================
 
-$status = sanitize(
-    $_GET['status'] ?? ''
-);
-
-$search = sanitize(
-    $_GET['search'] ?? ''
-);
+$status = sanitize($_GET['status'] ?? '');
+$search = sanitize($_GET['search'] ?? '');
 
 $pagination = get_pagination();
 
@@ -46,13 +41,12 @@ if ($status) {
 if ($search) {
 
     $where[] = "
-        (
-            po.po_number LIKE ?
-            OR q.quotation_number LIKE ?
-            OR r.rfq_number LIKE ?
-            OR v.company_name LIKE ?
-        )
-    ";
+    (
+        po.po_number LIKE ?
+        OR q.quotation_number LIKE ?
+        OR r.rfq_number LIKE ?
+        OR v.company_name LIKE ?
+    )";
 
     $binds[] = "%{$search}%";
     $binds[] = "%{$search}%";
@@ -87,7 +81,10 @@ if (
         success_response(
             'No purchase orders found',
             [
-                'purchase_orders' => []
+                'purchase_orders' => [],
+                'summary' => [],
+                'page' => 1,
+                'limit' => $pagination['limit']
             ]
         );
     }
@@ -101,56 +98,59 @@ if (
 // ========================================
 
 $sql = "
-    SELECT
-        po.id,
-        po.po_number,
-        po.quotation_id,
-        po.rfq_id,
-        po.vendor_id,
-        po.total_amount,
-        po.delivery_date,
-        po.status,
-        po.created_at,
+SELECT
+    po.id,
+    po.po_number,
+    po.quotation_id,
+    po.rfq_id,
+    po.vendor_id,
+    po.subtotal,
+    po.tax_percent,
+    po.tax_amount,
+    po.total_amount,
+    po.delivery_date,
+    po.status,
+    po.created_by,
+    po.created_at,
 
-        v.company_name AS vendor_name,
+    v.company_name AS vendor_name,
 
-        r.title AS rfq_title,
-        r.rfq_number,
+    r.title AS rfq_title,
+    r.rfq_number,
 
-        q.quotation_number,
+    q.quotation_number,
 
-        u.name AS created_by_name
+    u.name AS created_by_name
 
-    FROM purchase_orders po
+FROM purchase_orders po
 
-    INNER JOIN vendors v
-        ON v.id = po.vendor_id
+LEFT JOIN vendors v
+    ON v.id = po.vendor_id
 
-    INNER JOIN rfqs r
-        ON r.id = po.rfq_id
+LEFT JOIN rfqs r
+    ON r.id = po.rfq_id
 
-    INNER JOIN quotations q
-        ON q.id = po.quotation_id
+LEFT JOIN quotations q
+    ON q.id = po.quotation_id
 
-    INNER JOIN users u
-        ON u.id = po.created_by
+LEFT JOIN users u
+    ON u.id = po.created_by
 
-    WHERE " . implode(' AND ', $where) . "
+WHERE " . implode(' AND ', $where) . "
 
-    ORDER BY po.created_at DESC
+ORDER BY po.created_at DESC
 
-    LIMIT ?
-    OFFSET ?
+LIMIT ?
+OFFSET ?
 ";
 
-$binds[] = $pagination['limit'];
-$binds[] = $pagination['offset'];
+$binds[] = (int)$pagination['limit'];
+$binds[] = (int)$pagination['offset'];
 
 $stmt = $db->prepare($sql);
-
 $stmt->execute($binds);
 
-$purchaseOrders = $stmt->fetchAll();
+$purchaseOrders = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // ========================================
 // Summary
@@ -162,18 +162,17 @@ $summary = [
     'sent' => 0,
     'accepted' => 0,
     'completed' => 0,
+    'confirmed' => 0,
     'cancelled' => 0
 ];
 
 foreach ($purchaseOrders as $po) {
 
     $statusValue = strtolower(
-        $po['status']
+        $po['status'] ?? ''
     );
 
-    if (
-        isset($summary[$statusValue])
-    ) {
+    if (isset($summary[$statusValue])) {
         $summary[$statusValue]++;
     }
 }
