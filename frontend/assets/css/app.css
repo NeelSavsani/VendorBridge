@@ -134,8 +134,8 @@ a:hover { color: var(--accent-hover); }
 }
 .auth-logo .logo-text { font-size: 22px; font-weight: 700; color: var(--text-primary); }
 .auth-logo .logo-text span { color: var(--accent); }
-.auth-title { font-size: 24px; font-weight: 700; margin-bottom: 6px; }
-.auth-subtitle { color: var(--text-secondary); margin-bottom: 28px; font-size: 14px; }
+.auth-title { font-size: 24px; font-weight: 700; margin-bottom: 6px; text-align: center; }
+.auth-subtitle { color: var(--text-secondary); margin-bottom: 28px; font-size: 14px; text-align: center; }
 
 /* ---- LAYOUT ---- */
 .app-layout {
@@ -772,4 +772,100 @@ textarea { resize: vertical; min-height: 80px; }
 
 .password-toggle:hover {
   color: var(--text-primary);
+}
+
+/* ==========================
+   AUTH PAGES RESPONSIVE
+   ========================== */
+
+@media (max-width: 768px) {
+
+  .auth-page {
+    padding: 20px;
+    align-items: flex-start;
+  }
+
+  .auth-box {
+    width: 100%;
+    max-width: 100% !important;
+    padding: 24px;
+    margin: 20px 0;
+  }
+
+  .auth-logo {
+    justify-content: center;
+    text-align: center;
+  }
+
+  .auth-title {
+    font-size: 22px;
+    text-align: center;
+  }
+
+  .auth-subtitle {
+    text-align: center;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .btn-lg {
+    width: 100%;
+  }
+
+  .logo-icon {
+    width: 52px;
+    height: 52px;
+  }
+
+  .logo-text {
+    font-size: 20px !important;
+  }
+
+  .demo-cred {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 4px;
+  }
+}
+
+@media (max-width: 480px) {
+
+  .auth-page {
+    padding: 12px;
+  }
+
+  .auth-box {
+    padding: 20px;
+    border-radius: 14px;
+  }
+
+  .auth-title {
+    font-size: 20px;
+  }
+
+  .auth-subtitle {
+    font-size: 13px;
+  }
+
+  input,
+  select,
+  textarea {
+    font-size: 16px; /* prevents iOS zoom */
+  }
+
+  .logo-icon {
+    width: 48px;
+    height: 48px;
+  }
+
+  .logo-text {
+    font-size: 18px !important;
+  }
+
+  .password-toggle {
+    right: 12px;
+  }
 }
