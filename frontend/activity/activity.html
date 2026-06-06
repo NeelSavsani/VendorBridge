@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Activity Logs — VendorBridge</title>
+  <link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar"></aside>
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-left">
+        <div><div class="page-title">Activity & Logs</div><div class="page-subtitle">Procurement audit trail</div></div>
+      </div>
+      <div class="topbar-right">
+        <select id="limit-select" onchange="loadLogs()" style="width:130px;">
+          <option value="50">Last 50</option>
+          <option value="100">Last 100</option>
+          <option value="200">Last 200</option>
+        </select>
+      </div>
+    </div>
+    <div class="page-content">
+
+      <!-- Filter Bar -->
+      <div class="card mb-24">
+        <div class="filter-bar" style="padding:16px 24px;border-bottom:none;">
+          <div class="search-bar">
+            <span class="search-icon">🔍</span>
+            <input type="text" placeholder="Search activity..." id="search-input" oninput="filterLogs()">
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;" id="type-filters">
+            <button class="btn btn-secondary btn-sm active-filter" onclick="setFilter('')" data-filter="">All</button>
+            <button class="btn btn-secondary btn-sm" onclick="setFilter('RFQ')" data-filter="RFQ">RFQs</button>
+            <button class="btn btn-secondary btn-sm" onclick="setFilter('QUOTATION')" data-filter="QUOTATION">Quotations</button>
+            <button class="btn btn-secondary btn-sm" onclick="setFilter('APPROVAL')" data-filter="APPROVAL">Approvals</button>
+            <button class="btn btn-secondary btn-sm" onclick="setFilter('PO')" data-filter="PO">Purchase Orders</button>
+            <button class="btn btn-secondary btn-sm" onclick="setFilter('INVOICE')" data-filter="INVOICE">Invoices</button>
+            <button class="btn btn-secondary btn-sm" onclick="setFilter('VENDOR')" data-filter="VENDOR">Vendors</button>
+            <button class="btn btn-secondary btn-sm" onclick="setFilter('LOGIN')" data-filter="LOGIN">Auth</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Timeline -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Activity Timeline</div>
+          <span class="badge badge-gray" id="log-count">0 entries</span>
+        </div>
+        <div id="logs-container" style="padding:0 24px 24px;">
+          <div class="text-center" style="padding:40px;"><div class="spinner"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="../assets/js/app.js"></script>
+<style>
+  .log-item {
+    display: flex;
+    gap: 16px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.15s;
+  }
+  .log-item:last-child { border-bottom: none; }
+  .log-icon {
+    width: 36px; height: 36px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; flex-shrink: 0; margin-top: 2px;
+  }
+  .log-icon.rfq { background: rgba(52,152,219,0.15); }
+  .log-icon.quotation { background: rgba(0,212,170,0.12); }
+  .log-icon.approval { background: rgba(255,165,2,0.12); }
+  .log-icon.po { background: rgba(46,213,115,0.12); }
+  .log-icon.invoice { background: rgba(52,152,219,0.12); }
+  .log-icon.vendor { background: rgba(122,143,166,0.1); }
+  .log-icon.auth { background: rgba(255,71,87,0.1); }
+  .log-icon.default { background: var(--bg-hover); }
+  .log-action { font-weight: 600; text-transform: capitalize; margin-bottom: 2px; }
+  .log-desc { font-size: 13px; color: var(--text-secondary); }
+  .log-meta { display: flex; gap: 16px; margin-top: 4px; flex-wrap: wrap; }
+  .log-user { font-size: 12px; color: var(--text-muted); }
+  .log-time { font-size: 12px; color: var(--text-muted); }
+  .log-entity { font-size: 11px; background: var(--bg-hover); padding: 2px 8px; border-radius: 4px; color: var(--text-secondary); }
+  .active-filter { border-color: var(--accent) !important; color: var(--accent) !important; }
+</style>
+<script>
+if (!auth.requireAuth()) throw '';
+render_sidebar('activity');
+
+let allLogs = [];
+let currentFilter = '';
+
+async function loadLogs() {
+  const limit = document.getElementById('limit-select').value;
+  try {
+    allLogs = await api.get(`/activity-logs?limit=${limit}`);
+    filterLogs();
+  } catch(ex) {
+    toast.error(ex.message);
+    document.getElementById('logs-container').innerHTML = `<div class="text-center text-muted" style="padding:40px;">Failed to load activity logs</div>`;
+  }
+}
+
+function setFilter(type) {
+  currentFilter = type;
+  document.querySelectorAll('[data-filter]').forEach(btn => {
+    btn.classList.toggle('active-filter', btn.dataset.filter === type);
+  });
+  filterLogs();
+}
+
+function filterLogs() {
+  const q = document.getElementById('search-input').value.toLowerCase();
+  const filtered = allLogs.filter(log => {
+    const matchSearch = !q || log.action?.toLowerCase().includes(q) || log.description?.toLowerCase().includes(q) || log.user_name?.toLowerCase().includes(q);
+    const matchFilter = !currentFilter || log.action?.includes(currentFilter);
+    return matchSearch && matchFilter;
+  });
+  renderLogs(filtered);
+}
+
+function getLogIconClass(action) {
+  if (!action) return 'default';
+  if (action.includes('RFQ')) return 'rfq';
+  if (action.includes('QUOTATION')) return 'quotation';
+  if (action.includes('APPROVAL')) return 'approval';
+  if (action.includes('PO') || action.includes('PURCHASE')) return 'po';
+  if (action.includes('INVOICE')) return 'invoice';
+  if (action.includes('VENDOR')) return 'vendor';
+  if (action.includes('LOGIN') || action.includes('REGISTER')) return 'auth';
+  return 'default';
+}
+
+function renderLogs(logs) {
+  document.getElementById('log-count').textContent = `${logs.length} entries`;
+  if (!logs.length) {
+    document.getElementById('logs-container').innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">📋</div>
+        <div class="empty-title">No activity found</div>
+        <div class="empty-text">Activity logs will appear here as users perform actions</div>
+      </div>`;
+    return;
+  }
+
+  // Group by date
+  const grouped = {};
+  logs.forEach(log => {
+    const day = new Date(log.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+    if (!grouped[day]) grouped[day] = [];
+    grouped[day].push(log);
+  });
+
+  document.getElementById('logs-container').innerHTML = Object.entries(grouped).map(([day, dayLogs]) => `
+    <div style="margin:16px 0 8px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);">${day}</div>
+    ${dayLogs.map(log => `
+      <div class="log-item">
+        <div class="log-icon ${getLogIconClass(log.action)}">${activity_icon(log.action)}</div>
+        <div style="flex:1;min-width:0;">
+          <div class="log-action">${(log.action||'').toLowerCase().replace(/_/g,' ')}</div>
+          <div class="log-desc">${log.description || '—'}</div>
+          <div class="log-meta">
+            ${log.user_name ? `<span class="log-user">👤 ${log.user_name} (${log.user_role || ''})</span>` : ''}
+            <span class="log-time">🕐 ${fmt_datetime(log.created_at)}</span>
+            ${log.entity_type ? `<span class="log-entity">${log.entity_type} #${log.entity_id}</span>` : ''}
+            ${log.ip_address ? `<span class="log-user">IP: ${log.ip_address}</span>` : ''}
+          </div>
+        </div>
+      </div>
+    `).join('')}
+  `).join('');
+}
+
+loadLogs();
+</script>
+</body>
+</html>

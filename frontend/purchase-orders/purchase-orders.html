@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Purchase Orders — VendorBridge</title>
+  <link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar"></aside>
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-left">
+        <div><div class="page-title">Purchase Orders</div><div class="page-subtitle">Manage procurement transactions</div></div>
+      </div>
+      <div class="topbar-right">
+        <button class="btn btn-primary" id="gen-po-btn" onclick="openGenPOModal()">+ Generate PO</button>
+      </div>
+    </div>
+    <div class="page-content">
+      <div class="card">
+        <div class="filter-bar">
+          <div class="search-bar">
+            <span class="search-icon">🔍</span>
+            <input type="text" placeholder="Search POs..." id="search-input" oninput="filterPOs()">
+          </div>
+          <select id="filter-status" onchange="filterPOs()" style="width:150px;">
+            <option value="">All Status</option>
+            <option value="confirmed">Confirmed</option>
+            <option value="delivered">Delivered</option>
+            <option value="cancelled">Cancelled</option>
+            <option value="pending">Pending</option>
+          </select>
+        </div>
+        <div class="table-container">
+          <table>
+            <thead><tr>
+              <th>PO Number</th><th>RFQ</th><th>Vendor</th><th>Subtotal</th>
+              <th>Tax</th><th>Total</th><th>Delivery Date</th><th>Status</th><th>Actions</th>
+            </tr></thead>
+            <tbody id="po-tbody">
+              <tr><td colspan="9" class="text-center"><div class="spinner"></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Generate PO Modal -->
+<div class="modal-overlay hidden" id="gen-po-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Generate Purchase Order</div>
+      <button class="btn btn-secondary btn-sm btn-icon" onclick="modal.close('gen-po-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="text-muted mb-16" style="font-size:13px;">POs are auto-generated from approved quotations. Select an approved quotation below.</p>
+      <div class="form-group">
+        <label>Approved Quotation *</label>
+        <select id="po-quotation-id" onchange="loadQuotationDetails()">
+          <option value="">Loading approved quotations...</option>
+        </select>
+      </div>
+      <div id="quotation-preview" style="display:none;background:var(--bg-secondary);padding:16px;border-radius:var(--radius);margin-bottom:16px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;" id="quotation-preview-content"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Delivery Date</label>
+          <input id="po-delivery-date" type="date">
+        </div>
+        <div class="form-group">
+          <label>Tax %</label>
+          <input id="po-tax-pct" type="number" value="18">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Shipping Address</label>
+        <textarea id="po-shipping-addr" rows="2" placeholder="Delivery address..."></textarea>
+      </div>
+      <div class="form-group">
+        <label>Terms & Conditions</label>
+        <textarea id="po-terms" rows="2" placeholder="Payment terms, delivery terms...">Payment due within 30 days of delivery. All items subject to quality inspection.</textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="modal.close('gen-po-modal')">Cancel</button>
+      <button class="btn btn-primary" id="gen-po-save-btn" onclick="generatePO()">📦 Generate PO</button>
+    </div>
+  </div>
+</div>
+
+<!-- View PO Modal -->
+<div class="modal-overlay hidden" id="view-po-modal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div class="modal-title" id="view-po-title">Purchase Order</div>
+      <button class="btn btn-secondary btn-sm btn-icon" onclick="modal.close('view-po-modal')">✕</button>
+    </div>
+    <div class="modal-body" id="view-po-body"></div>
+    <div class="modal-footer" id="view-po-footer">
+      <button class="btn btn-secondary" onclick="modal.close('view-po-modal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="../assets/js/app.js"></script>
+<script>
+if (!auth.requireAuth()) throw '';
+render_sidebar('purchase-orders');
+
+let allPOs = [];
+
+if (!auth.hasRole('procurement_officer','admin')) {
+  document.getElementById('gen-po-btn').style.display = 'none';
+}
+
+async function loadPOs() {
+  try {
+    allPOs = await api.get('/purchase-orders');
+    renderPOs(allPOs);
+  } catch(ex) {
+    toast.error(ex.message);
+    document.getElementById('po-tbody').innerHTML = `<tr><td colspan="9" class="text-center text-muted">Failed to load</td></tr>`;
+  }
+}
+
+function renderPOs(pos) {
+  if (!pos.length) {
+    document.getElementById('po-tbody').innerHTML = `
+      <tr><td colspan="9"><div class="empty-state">
+        <div class="empty-icon">📦</div>
+        <div class="empty-title">No Purchase Orders</div>
+        <div class="empty-text">Generate a PO from an approved quotation to get started</div>
+        ${auth.hasRole('procurement_officer','admin') ? '<button class="btn btn-primary" onclick="openGenPOModal()">+ Generate PO</button>' : ''}
+      </div></td></tr>`;
+    return;
+  }
+  document.getElementById('po-tbody').innerHTML = pos.map(po => `
+    <tr style="cursor:pointer;" onclick="viewPO(${po.id})">
+      <td class="font-mono fw-600">${po.po_number}</td>
+      <td>
+        <div class="fw-600">${po.rfq_number || ''}</div>
+        <div class="text-sm text-muted">${po.rfq_title || ''}</div>
+      </td>
+      <td>${po.company_name || po.vendor_name || '—'}</td>
+      <td>${fmt_currency(po.subtotal)}</td>
+      <td class="text-muted">${fmt_currency(po.tax_amount)}</td>
+      <td class="fw-600" style="color:var(--accent);">${fmt_currency(po.total_amount)}</td>
+      <td class="font-mono">${fmt_date(po.delivery_date)}</td>
+      <td>${status_badge(po.status)}</td>
+      <td class="actions-col" onclick="event.stopPropagation()">
+        <button class="btn btn-secondary btn-sm" onclick="viewPO(${po.id})">View</button>
+        ${auth.hasRole('procurement_officer','admin') && !po.invoice_id ?
+          `<button class="btn btn-primary btn-sm" onclick="generateInvoice(${po.id})">🧾 Invoice</button>` : ''}
+      </td>
+    </tr>
+  `).join('');
+}
+
+function filterPOs() {
+  const q = document.getElementById('search-input').value.toLowerCase();
+  const status = document.getElementById('filter-status').value;
+  renderPOs(allPOs.filter(po =>
+    (!q || po.po_number?.toLowerCase().includes(q) || (po.company_name||'').toLowerCase().includes(q)) &&
+    (!status || po.status === status)
+  ));
+}
+
+async function openGenPOModal() {
+  try {
+    const quotes = await api.get('/quotations');
+    const approved = quotes.filter(q => q.status === 'selected');
+    const sel = document.getElementById('po-quotation-id');
+    if (!approved.length) {
+      sel.innerHTML = '<option value="">No approved quotations available</option>';
+      toast.info('No approved quotations found. Approve a quotation first.');
+    } else {
+      sel.innerHTML = '<option value="">Select approved quotation...</option>' +
+        approved.map(q => `<option value="${q.id}">${q.quotation_number} — ${q.rfq_title} (${q.company_name||q.vendor_name||''}) — ${fmt_currency(q.total_amount)}</option>`).join('');
+    }
+    document.getElementById('quotation-preview').style.display = 'none';
+    // Set default delivery date 2 weeks out
+    const d = new Date(); d.setDate(d.getDate()+14);
+    document.getElementById('po-delivery-date').value = d.toISOString().substring(0,10);
+    modal.open('gen-po-modal');
+  } catch(ex) { toast.error(ex.message); }
+}
+
+async function loadQuotationDetails() {
+  const qId = document.getElementById('po-quotation-id').value;
+  if (!qId) { document.getElementById('quotation-preview').style.display = 'none'; return; }
+  try {
+    const q = await api.get(`/quotations/${qId}`);
+    document.getElementById('quotation-preview-content').innerHTML = `
+      <div><div class="text-muted text-sm">Vendor</div><div class="fw-600">${q.company_name||q.vendor_name||'—'}</div></div>
+      <div><div class="text-muted text-sm">Quotation #</div><div class="fw-600 font-mono">${q.quotation_number}</div></div>
+      <div><div class="text-muted text-sm">Subtotal</div><div class="fw-600">${fmt_currency(q.subtotal)}</div></div>
+      <div><div class="text-muted text-sm">Total Amount</div><div class="fw-600" style="color:var(--accent);">${fmt_currency(q.total_amount)}</div></div>
+    `;
+    document.getElementById('po-tax-pct').value = q.tax_percent || 18;
+    document.getElementById('quotation-preview').style.display = '';
+  } catch(ex) {}
+}
+
+async function generatePO() {
+  const qId = document.getElementById('po-quotation-id').value;
+  if (!qId) { toast.error('Please select a quotation'); return; }
+  const btn = document.getElementById('gen-po-save-btn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+  try {
+    const res = await api.post('/purchase-orders', {
+      quotation_id: parseInt(qId),
+      delivery_date: document.getElementById('po-delivery-date').value,
+      tax_percent: parseFloat(document.getElementById('po-tax-pct').value) || 18,
+      shipping_address: document.getElementById('po-shipping-addr').value,
+      terms_conditions: document.getElementById('po-terms').value,
+    });
+    toast.success(`PO ${res.po_number} generated successfully!`);
+    modal.close('gen-po-modal');
+    loadPOs();
+  } catch(ex) { toast.error(ex.message); }
+  finally { btn.disabled = false; btn.innerHTML = '📦 Generate PO'; }
+}
+
+async function viewPO(id) {
+  try {
+    const po = await api.get(`/purchase-orders/${id}`);
+    document.getElementById('view-po-title').textContent = `PO: ${po.po_number}`;
+    document.getElementById('view-po-body').innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
+        <div style="display:grid;gap:10px;">
+          <div><div class="text-muted text-sm">PO Number</div><div class="fw-600 font-mono" style="font-size:18px;">${po.po_number}</div></div>
+          <div><div class="text-muted text-sm">RFQ</div><div class="fw-600">${po.rfq_number} — ${po.rfq_title}</div></div>
+          <div><div class="text-muted text-sm">Vendor</div><div class="fw-600">${po.company_name||po.vendor_name}</div></div>
+          <div><div class="text-muted text-sm">Delivery Date</div><div class="fw-600 font-mono">${fmt_date(po.delivery_date)}</div></div>
+          <div><div class="text-muted text-sm">Status</div>${status_badge(po.status)}</div>
+          <div><div class="text-muted text-sm">Created</div><div>${fmt_datetime(po.created_at)}</div></div>
+        </div>
+        <div style="background:var(--bg-secondary);padding:16px;border-radius:var(--radius);">
+          <div style="display:flex;justify-content:space-between;margin-bottom:8px;"><span class="text-muted">Subtotal</span><span>${fmt_currency(po.subtotal)}</span></div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:8px;"><span class="text-muted">Tax (${po.tax_percent||18}%)</span><span>${fmt_currency(po.tax_amount)}</span></div>
+          <div style="display:flex;justify-content:space-between;padding-top:8px;border-top:1px solid var(--border);">
+            <span class="fw-600">Total Amount</span>
+            <span class="fw-600" style="color:var(--accent);font-size:22px;">${fmt_currency(po.total_amount)}</span>
+          </div>
+        </div>
+      </div>
+      ${po.shipping_address ? `<div class="mb-16"><div class="text-muted text-sm mb-4">Shipping Address</div><div style="background:var(--bg-secondary);padding:12px;border-radius:8px;">${po.shipping_address}</div></div>` : ''}
+      ${po.terms_conditions ? `<div class="mb-16"><div class="text-muted text-sm mb-4">Terms & Conditions</div><div style="background:var(--bg-secondary);padding:12px;border-radius:8px;font-size:13px;color:var(--text-secondary);">${po.terms_conditions}</div></div>` : ''}
+    `;
+    const footer = document.getElementById('view-po-footer');
+    footer.innerHTML = `<button class="btn btn-secondary" onclick="modal.close('view-po-modal')">Close</button>`;
+    if (auth.hasRole('procurement_officer','admin') && !po.invoice_id) {
+      footer.innerHTML += `<button class="btn btn-primary" onclick="modal.close('view-po-modal');generateInvoice(${po.id})">🧾 Generate Invoice</button>`;
+    }
+    if (po.invoice_id) {
+      footer.innerHTML += `<button class="btn btn-secondary" onclick="navigate('invoices')">🧾 View Invoice</button>`;
+    }
+    modal.open('view-po-modal');
+  } catch(ex) { toast.error(ex.message); }
+}
+
+async function generateInvoice(poId) {
+  try {
+    const res = await api.post('/invoices', { po_id: poId });
+    toast.success(`Invoice ${res.invoice_number} generated!`);
+    loadPOs();
+    if (confirm('Invoice generated! View invoices page?')) navigate('invoices');
+  } catch(ex) { toast.error(ex.message); }
+}
+
+loadPOs();
+</script>
+</body>
+</html>

@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reports — VendorBridge</title>
+  <link rel="stylesheet" href="../assets/css/app.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar"></aside>
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-left">
+        <div><div class="page-title">Reports & Analytics</div><div class="page-subtitle">Procurement insights</div></div>
+      </div>
+      <div class="topbar-right">
+        <input type="month" id="month-picker" style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;color:var(--text-primary);">
+        <button class="btn btn-primary" onclick="loadReports()">📊 Refresh</button>
+        <button class="btn btn-secondary" onclick="window.print()">🖨️ Export</button>
+      </div>
+    </div>
+    <div class="page-content">
+
+      <!-- KPI Cards -->
+      <div class="stats-grid" id="kpi-grid">
+        <div class="stat-card"><div class="spinner"></div></div>
+        <div class="stat-card"><div class="spinner"></div></div>
+        <div class="stat-card"><div class="spinner"></div></div>
+        <div class="stat-card"><div class="spinner"></div></div>
+      </div>
+
+      <!-- Charts Row -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px;">
+        <!-- Spend by Category -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Spend by Category</div>
+          </div>
+          <div style="padding:16px 24px 24px;position:relative;height:280px;">
+            <canvas id="category-chart"></canvas>
+            <div id="category-empty" style="display:none;" class="empty-state">
+              <div class="empty-icon">📊</div>
+              <div class="empty-title">No data yet</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Monthly Trend -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Monthly Spend Trend</div>
+          </div>
+          <div style="padding:16px 24px 24px;position:relative;height:280px;">
+            <canvas id="trend-chart"></canvas>
+            <div id="trend-empty" style="display:none;" class="empty-state">
+              <div class="empty-icon">📈</div>
+              <div class="empty-title">No trend data yet</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Top Vendors + Category Breakdown -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px;">
+        <!-- Top Vendors Table -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Top Vendors by Spend</div>
+          </div>
+          <div class="table-container">
+            <table>
+              <thead><tr><th>Vendor</th><th>Spend</th><th>POs</th><th>Share</th></tr></thead>
+              <tbody id="top-vendors-tbody">
+                <tr><td colspan="4" class="text-center"><div class="spinner"></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Category Breakdown -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Category Breakdown</div>
+          </div>
+          <div id="category-breakdown" style="padding:16px 24px 24px;">
+            <div class="text-center"><div class="spinner"></div></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="../assets/js/app.js"></script>
+<script>
+if (!auth.requireAuth()) throw '';
+render_sidebar('reports');
+
+// Set current month as default
+const now = new Date();
+document.getElementById('month-picker').value = now.toISOString().substring(0,7);
+
+let categoryChartInst = null;
+let trendChartInst = null;
+
+const CHART_COLORS = ['#00d4aa','#3498db','#ffa502','#ff4757','#2ed573','#a29bfe','#fd79a8','#fdcb6e'];
+
+async function loadReports() {
+  const month = document.getElementById('month-picker').value || now.toISOString().substring(0,7);
+  try {
+    const data = await api.get(`/reports?month=${month}`);
+    renderKPIs(data, month);
+    renderTopVendors(data.top_vendors || []);
+    renderCategoryBreakdown(data.spend_by_category || []);
+    renderCategoryChart(data.spend_by_category || []);
+    renderTrendChart(data.monthly_trend || []);
+  } catch(ex) {
+    toast.error('Failed to load reports: ' + ex.message);
+  }
+}
+
+function renderKPIs(data, month) {
+  const monthLabel = new Date(month + '-01').toLocaleDateString('en-IN', {month:'long', year:'numeric'});
+  document.getElementById('kpi-grid').innerHTML = `
+    <div class="stat-card">
+      <div class="stat-icon">💰</div>
+      <div class="stat-label">Total Spend</div>
+      <div class="stat-value green">${fmt_currency(data.total_spend || 0)}</div>
+      <div class="stat-change">${monthLabel}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">📦</div>
+      <div class="stat-label">Purchase Orders</div>
+      <div class="stat-value blue">${data.active_vendors || 0}</div>
+      <div class="stat-change">This month</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">📉</div>
+      <div class="stat-label">Savings vs Budget</div>
+      <div class="stat-value ${(data.savings_pct||0) >= 0 ? 'green' : 'orange'}">${data.savings_pct || 0}%</div>
+      <div class="stat-change">Budget: ${fmt_currency(data.budget||0)}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">🧾</div>
+      <div class="stat-label">Total Invoices</div>
+      <div class="stat-value">${data.invoices_count || 0}</div>
+      <div class="stat-change">All time</div>
+    </div>
+  `;
+}
+
+function renderTopVendors(vendors) {
+  if (!vendors.length) {
+    document.getElementById('top-vendors-tbody').innerHTML = `
+      <tr><td colspan="4" class="text-center text-muted">No vendor spend data this month</td></tr>`;
+    return;
+  }
+  const totalSpend = vendors.reduce((s, v) => s + parseFloat(v.spend||0), 0);
+  document.getElementById('top-vendors-tbody').innerHTML = vendors.map((v, i) => {
+    const pct = totalSpend > 0 ? ((parseFloat(v.spend)/totalSpend)*100).toFixed(1) : 0;
+    return `
+      <tr>
+        <td>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="width:8px;height:8px;border-radius:50%;background:${CHART_COLORS[i%CHART_COLORS.length]};flex-shrink:0;"></div>
+            <span class="fw-600">${v.company_name}</span>
+          </div>
+        </td>
+        <td class="fw-600" style="color:var(--accent);">${fmt_currency(v.spend)}</td>
+        <td><span class="badge badge-gray">${v.pos} POs</span></td>
+        <td>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="flex:1;height:6px;background:var(--bg-hover);border-radius:3px;overflow:hidden;">
+              <div style="width:${pct}%;height:100%;background:${CHART_COLORS[i%CHART_COLORS.length]};border-radius:3px;"></div>
+            </div>
+            <span class="text-sm text-muted">${pct}%</span>
+          </div>
+        </td>
+      </tr>`;
+  }).join('');
+}
+
+function renderCategoryBreakdown(categories) {
+  if (!categories.length) {
+    document.getElementById('category-breakdown').innerHTML = `
+      <div class="empty-state" style="padding:20px 0;">
+        <div class="empty-icon">📊</div>
+        <div class="empty-title">No category data</div>
+      </div>`;
+    return;
+  }
+  const total = categories.reduce((s, c) => s + parseFloat(c.total||0), 0);
+  document.getElementById('category-breakdown').innerHTML = categories.map((c, i) => {
+    const pct = total > 0 ? ((parseFloat(c.total)/total)*100).toFixed(1) : 0;
+    return `
+      <div style="margin-bottom:14px;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="width:10px;height:10px;border-radius:2px;background:${CHART_COLORS[i%CHART_COLORS.length]};"></div>
+            <span class="fw-600">${c.category || 'General'}</span>
+          </div>
+          <div style="display:flex;gap:12px;align-items:center;">
+            <span class="text-muted text-sm">${pct}%</span>
+            <span class="fw-600">${fmt_currency(c.total)}</span>
+          </div>
+        </div>
+        <div style="height:8px;background:var(--bg-hover);border-radius:4px;overflow:hidden;">
+          <div style="width:${pct}%;height:100%;background:${CHART_COLORS[i%CHART_COLORS.length]};border-radius:4px;transition:width 0.8s ease;"></div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderCategoryChart(categories) {
+  const canvas = document.getElementById('category-chart');
+  const empty = document.getElementById('category-empty');
+  if (!categories.length) {
+    canvas.style.display = 'none';
+    empty.style.display = '';
+    return;
+  }
+  canvas.style.display = '';
+  empty.style.display = 'none';
+  if (categoryChartInst) categoryChartInst.destroy();
+  categoryChartInst = new Chart(canvas, {
+    type: 'doughnut',
+    data: {
+      labels: categories.map(c => c.category || 'General'),
+      datasets: [{
+        data: categories.map(c => parseFloat(c.total||0)),
+        backgroundColor: CHART_COLORS.slice(0, categories.length),
+        borderWidth: 0,
+        hoverOffset: 8,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'right',
+          labels: { color: '#7a8fa6', font: { family: 'Space Grotesk' }, padding: 12 }
+        },
+        tooltip: {
+          callbacks: { label: (ctx) => ` ${ctx.label}: ₹${Number(ctx.raw).toLocaleString('en-IN')}` }
+        }
+      }
+    }
+  });
+}
+
+function renderTrendChart(trend) {
+  const canvas = document.getElementById('trend-chart');
+  const empty = document.getElementById('trend-empty');
+  if (!trend.length) {
+    canvas.style.display = 'none';
+    empty.style.display = '';
+    return;
+  }
+  canvas.style.display = '';
+  empty.style.display = 'none';
+  if (trendChartInst) trendChartInst.destroy();
+  trendChartInst = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels: trend.map(t => t.m),
+      datasets: [{
+        label: 'Spend (₹)',
+        data: trend.map(t => parseFloat(t.total||0)),
+        backgroundColor: 'rgba(0,212,170,0.2)',
+        borderColor: '#00d4aa',
+        borderWidth: 2,
+        borderRadius: 6,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: { label: (ctx) => ` ₹${Number(ctx.raw).toLocaleString('en-IN')}` }
+        }
+      },
+      scales: {
+        x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#7a8fa6' } },
+        y: {
+          grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#7a8fa6',
+          callback: (v) => '₹' + Number(v).toLocaleString('en-IN', {notation:'compact'}) }
+        }
+      }
+    }
+  });
+}
+
+loadReports();
+</script>
+</body>
+</html>
