@@ -10,12 +10,17 @@
 <body>
 <div class="auth-page">
   <div class="auth-box" style="max-width:520px;">
-    <div class="auth-logo">
-<div class="logo-icon">
-  <img src="../assets/images/Logo.png" alt="VendorBridge Logo">
+<div class="auth-logo">
+  <div class="logo-icon">
+    <img src="../assets/images/Logo.png" alt="VendorBridge Logo">
+  </div>
+
+  <div class="logo-text">Vendor<span>Bridge</span></div>
+
+  <button id="theme-toggle" class="theme-toggle">
+    <i class="fa-solid fa-moon"></i>
+  </button>
 </div>
-      <div class="logo-text">Vendor<span>Bridge</span></div>
-    </div>
     <h1 class="auth-title">Create account</h1>
     <p class="auth-subtitle">Join the VendorBridge procurement platform</p>
 
@@ -65,7 +70,7 @@
         <div class="form-group">
   <label>Password *</label>
   <div class="password-wrapper">
-    <input type="password" id="password" placeholder="Min 6 characters" required>
+    <input type="password" id="password" placeholder="Min 8 characters" required>
 <span class="password-toggle" onclick="togglePassword('password', this)">
   <i class="fa-regular fa-eye"></i>
 </span>  </div>
@@ -75,7 +80,7 @@
   <label>Confirm Password *</label>
   <div class="password-wrapper">
     <input type="password" id="confirm_password" placeholder="Re-enter password" required>
-<span class="password-toggle" onclick="togglePassword('password', this)">
+<span class="password-toggle" onclick="togglePassword('confirm_password', this)">
   <i class="fa-regular fa-eye"></i>
 </span>
   </div>
@@ -86,9 +91,7 @@
       </button>
     </form>
     <div style="margin-top:16px; text-align:center; font-size:13px; color:var(--text-secondary);">
-      Already have an account? <a href="login.html">Login
-        
-      </a>
+      Already have an account? <a href="login.html">Login</a>
     </div>
   </div>
 </div>
@@ -149,6 +152,49 @@ function togglePassword(id, el) {
     icon.classList.add('fa-eye');
   }
 }
+
+const themeToggle = document.getElementById('theme-toggle');
+
+const themeToggle = document.getElementById('theme-toggle');
+
+function updateTheme() {
+  const isLight = document.body.classList.contains('light-theme');
+
+  themeToggle.innerHTML = isLight
+    ? '<i class="fa-solid fa-sun"></i>'
+    : '<i class="fa-solid fa-moon"></i>';
+}
+
+if (localStorage.getItem('theme') === 'light') {
+  document.body.classList.add('light-theme');
+}
+
+updateTheme();
+
+themeToggle.addEventListener('click', () => {
+  document.body.classList.toggle('light-theme');
+
+  localStorage.setItem(
+    'theme',
+    document.body.classList.contains('light-theme')
+      ? 'light'
+      : 'dark'
+  );
+
+  updateTheme();
+});
+
+themeToggle.addEventListener('click', () => {
+  document.body.classList.toggle('light-theme');
+
+  const isLight = document.body.classList.contains('light-theme');
+
+  localStorage.setItem('theme', isLight ? 'light' : 'dark');
+
+  themeToggle.innerHTML = isLight
+    ? '<i class="fa-solid fa-moon"></i>'
+    : '<i class="fa-solid fa-sun"></i>';
+});
 
 </script>
 </body>
